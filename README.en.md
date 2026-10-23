@@ -30,7 +30,7 @@ Requires DSH `>= 0.2.1-rc.2 <0.3.0` and a system `ssh` client.
 (format 1) is published with the repository:
 
 ```
-https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
+https://cccodder.github.io/dsh-remote-console/market/index.json
 ```
 
 Add it under **Discover → Add index source**, then install from the list. When a newer
@@ -94,15 +94,18 @@ link opens the GitHub release page.
 The plugin is published to npm with a format-1 market index:
 
 ```
-https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
+https://cccodder.github.io/dsh-remote-console/market/index.json
 ```
 
 Add it under **Discover → Add index source**; the entry then shows "Update available" when a
 newer version is in the index, and DSH installs it through the plugin manager (`dsh-remote-console@<version>`
 from npm). The install location and the data directory stay the same.
 
-> If jsDelivr is unreachable on your network, use the raw GitHub URL or host
-> `market/index.json` on your own static server — it is just a JSON document.
+> This is GitHub Pages, updated on every push (the first build takes about a minute).
+> If it is unreachable, use the jsDelivr URL
+> `https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json`
+> (branch cache up to ~12h), the raw GitHub URL, or host `market/index.json` on your own
+> static server — it is just a JSON document.
 
 **Option 2 — manual reinstall (no market enabled)**
 
