@@ -14,6 +14,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 
 const PEERS = ['dsh-home-paths', 'dsh-tools'];
+/** 只有测试用到的库（不参与运行时）；缺了也不影响被测代码，但市场索引测试需要它。 */
+const TEST_LIBS = ['dsh-plugin-market-index'];
 
 /** `lib/bin.js` → 包根目录。 */
 function dshPackageRoot(binPath) {
@@ -41,7 +43,7 @@ function candidates() {
 function findInstall() {
   for (const base of candidates()) {
     const nodeModules = join(base, 'node_modules', '@deepseek-ai');
-    if (PEERS.every((peer) => existsSync(join(nodeModules, peer, 'package.json')))) return nodeModules;
+    if ([...PEERS, ...TEST_LIBS].every((peer) => existsSync(join(nodeModules, peer, 'package.json')))) return nodeModules;
   }
   return undefined;
 }
@@ -56,7 +58,7 @@ if (nodeModules === undefined) {
 
 const targetDir = join(root, 'node_modules', '@deepseek-ai');
 mkdirSync(targetDir, { recursive: true });
-for (const peer of PEERS) {
+for (const peer of [...PEERS, ...TEST_LIBS]) {
   const link = join(targetDir, peer);
   rmSync(link, { force: true, recursive: true });
   symlinkSync(join(nodeModules, peer), link, 'dir');

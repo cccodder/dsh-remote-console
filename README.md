@@ -21,11 +21,23 @@ DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码�
 
 要求：DSH `>= 0.2.1-rc.2 <0.3.0`，本机有系统 `ssh` 客户端。
 
+**npm 包名**：`dsh-remote-console`（https://www.npmjs.com/package/dsh-remote-console）。
+
+**插件市场（推荐，能显示「有新版本」）**：插件市场索引（DSH plugin market format 1）：
+
+```
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+```
+
+1. 侧栏「发现」（需要启用实验性 bundle `@deepseek-ai/dsh-experimental-plugin-market-bundle`）。
+2. 「添加索引源」→ 粘贴上面的 URL。
+3. 在列表里点安装；以后有新版本会显示「有新版本」，直接更新。
+
 **CLI 管理的 profile**（例如 `web`）：
 
 ```bash
 # 1. 装进 profile（--profile 换成你自己的 profile 名）
-dsh plugin --profile web add /path/to/dsh-remote-console
+dsh plugin --profile web add dsh-remote-console
 
 # 2. 把插件加进该 profile 的 bundle 列表
 #    编辑 $DSH_HOME/profiles/web/package.json：
@@ -37,7 +49,8 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 
 **Electron 桌面版**：`desktop` profile 由 App 独占管理，CLI 会直接拒绝
 （`profile "desktop" is managed exclusively by the Electron application`）。
-请用 App 内置的**插件管理器**粘贴仓库地址安装（`github:cccodder/dsh-remote-console`），
+请用 App 内置的**插件管理器**安装：包名填 `dsh-remote-console`（从 npm 装），
+或粘贴 `github:cccodder/dsh-remote-console`（从 git 装最新提交）。
 它会自动写入 profile 的 `dependencies` 与 `dsh.profile.bundles`。注意全局 `dsh` CLI
 版本可能低于 App 自带的 DSH，以 App 内的版本为准。
 
@@ -69,22 +82,33 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ## 更新
 
 **怎么知道有新版本**：面板底部左侧是「密码只在终端里输入…」，右侧显示当前版本
-（如 `v0.6.3`）。客户端会查一次 GitHub 最新 Release（结果缓存 6 小时，离线/限流/CORS
+（如 `v0.6.4`）。客户端会查一次 GitHub 最新 Release（结果缓存 6 小时，离线/限流/CORS
 失败都静默），发现更高版本时在同一位置显示「有新版本 vX.Y.Z」，点开是 GitHub Release 页。
 
-**怎么更新（第三方插件目前只能重装）**：
+**方式一：插件市场（有真正的「更新」入口）**
+
+插件已发布到 npm，并提供 format 1 的市场索引：
+
+```
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+```
+
+在侧栏「发现」→「添加索引源」里加上这个 URL 后，发现页会列出本插件；索引里的版本比
+已安装的新时显示「有新版本」，点一下就走 DSH 的安装/更新流程（安装源是 npm 的
+`dsh-remote-console@<version>`）。安装位置不会变，数据目录也不受影响。
+
+**方式二：手动重装（没有启用插件市场时）**
 
 1. 侧栏「插件」→「已安装插件」→ `dsh-remote-console` → **卸载**（会二次确认）。
-2. 「添加插件」→ 输入 `github:cccodder/dsh-remote-console` → 安装 → 「立即启用」。
+2. 「添加插件」→ 输入 `dsh-remote-console`（npm）或 `github:cccodder/dsh-remote-console`
+   （git 最新提交）→ 安装 → 「立即启用」。
 3. 重启一次 DSH 桌面 App。插件在热更新后会重新 `apply()`，虽然已经做了幂等保护，
    但重启最干净（0.6.0/0.6.1 升级上来的旧包装必须靠重启清掉）。
 
 主机列表、`hosts.tsv` 这些数据在 `~/.dsh/remote-console/`，不在插件包里，卸载重装不会丢。
 
-**为什么没有一键「更新」按钮**：插件管理器的规则是官方按需插件才在版本不一致时提供
-「更新」，第三方插件要先卸载再装新版（安装对话框里也写着这句）。要走带「可更新」状态的
-分发方式，需要把插件发布到 npm 或做一份 DSH 插件市场索引（format 1，Git 源要固定到
-commit），这属于后续可选项。
+**关于一键更新**：DSH 插件管理器只给官方按需插件提供「更新」按钮；第三方插件想要同样的
+体验，就得通过插件市场索引（本仓库的 `market/index.json`）或发布到 npm 让方负责分发。
 
 ## 安全模型
 
@@ -131,7 +155,7 @@ commit），这属于后续可选项。
 ## 开发与测试
 
 ```bash
-npm test          # 66 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
+npm test          # 69 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
 ```
 
 测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包

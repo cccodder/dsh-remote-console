@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.6.4
+
+发布到 npm，并附带 DSH 插件市场索引（format 1），第三方插件因此有了真正的「更新」入口。
+
+### Added
+
+- **npm 发布**：`npm install dsh-remote-console`（包名 `dsh-remote-console`）。
+- **插件市场索引**：仓库内 `market/index.json`，URL 为
+  `https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json`。
+  用户在侧栏「发现 → 添加索引源」里加入后，索引版本比已安装新时显示「有新版本」，
+  点击即走 DSH 插件管理器的安装/更新流程（npm 源，`dsh-remote-console@<version>`）。
+- `scripts/market-index.mjs`（`npm run market:index`）：从 `package.json` 与 npm registry
+  的发布时间生成/追加索引版本，保留历史版本、按 SemVer 降序。
+- `tests/market.test.mjs`：用 DSH 的 `parseMarketIndex` 校验 `market/index.json`，
+  并断言当前 `package.json` 版本、`engines.dsh`、npm 源与索引一致。
+
+### Changed
+
+- README（中/英）安装与更新章节重写：npm、插件市场索引、手动重装三条路径，
+  以及「为什么第三方插件原本没有一键更新」。
+
+### Tests
+
+69 个测试（新增：市场索引 format 1 校验、版本对齐、索引与 package.json 同步）。
+
 ## 0.6.3
 
 面板里能看到「有没有新版本」，并补上更新路径说明。

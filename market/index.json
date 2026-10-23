@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "title": {
+    "en": "dsh-remote-console",
+    "zh": "dsh-remote-console（SSH 远程终端）"
+  },
+  "description": {
+    "en": "Right-sidebar SSH remote console for DeepSeek Harness: the agent works inside the same PTY you are watching.",
+    "zh": "DSH 右侧栏的 SSH 远程终端：agent 在你正在看的同一个 PTY 里工作。"
+  },
+  "metadata": {
+    "categories": {
+      "remote": {
+        "title": {
+          "en": "Remote access",
+          "zh": "远程访问"
+        }
+      }
+    },
+    "labels": {},
+    "sortKeys": {}
+  },
+  "plugins": [
+    {
+      "name": "dsh-remote-console",
+      "title": {
+        "en": "SSH Remote Console",
+        "zh": "SSH 远程终端"
+      },
+      "description": {
+        "en": "SSH hosts in the right sidebar; the agent reads and writes the same PTY, with a unified human+agent log.",
+        "zh": "右侧栏列 SSH 主机；agent 读写同一个 PTY，人与 agent 共用一条日志。"
+      },
+      "author": "cccodder",
+      "homepage": "https://github.com/cccodder/dsh-remote-console#readme",
+      "repository": {
+        "url": "https://github.com/cccodder/dsh-remote-console"
+      },
+      "metadata": {
+        "category": "remote",
+        "keywords": [
+          "dsh",
+          "deepseek-harness",
+          "dsh-plugin",
+          "ssh",
+          "remote-console",
+          "terminal"
+        ],
+        "labels": [],
+        "sortKeys": {}
+      },
+      "versions": [
+        {
+          "version": "0.6.4",
+          "publishTimestamp": 1792774229,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.2 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}

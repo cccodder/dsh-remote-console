@@ -24,11 +24,24 @@ appear in the window like human typing, and the exit code comes from the shell's
 
 Requires DSH `>= 0.2.1-rc.2 <0.3.0` and a system `ssh` client.
 
+**npm package**: `dsh-remote-console` (https://www.npmjs.com/package/dsh-remote-console).
+
+**Plugin market (recommended — gives a real Update entry)**: a DSH plugin market index
+(format 1) is published with the repository:
+
+```
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+```
+
+Add it under **Discover → Add index source**, then install from the list. When a newer
+version is published the entry shows "Update available" and DSH handles the update through
+the plugin manager.
+
 **CLI-managed profile** (e.g. `web`):
 
 ```bash
 # 1. install into a profile (replace "web" with your profile name)
-dsh plugin --profile web add /path/to/dsh-remote-console
+dsh plugin --profile web add dsh-remote-console
 
 # 2. add it to that profile's bundle list
 #    $DSH_HOME/profiles/web/package.json:
@@ -40,9 +53,10 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 
 **Electron desktop app**: the `desktop` profile is owned by the app and the CLI refuses it
 (`profile "desktop" is managed exclusively by the Electron application`). Install through the
-in-app plugin manager with the repository address (`github:cccodder/dsh-remote-console`); it
-writes `dependencies` and `dsh.profile.bundles` for you. The global `dsh` CLI may be older
-than the DSH bundled in the app — the app's version is the one that counts.
+in-app plugin manager: package name `dsh-remote-console` (npm), or the repository address
+`github:cccodder/dsh-remote-console` (latest commit). It writes `dependencies` and
+`dsh.profile.bundles` for you. The global `dsh` CLI may be older than the DSH bundled in the
+app — the app's version is the one that counts.
 
 No Python, no edits to `~/.ssh/config`, no shell rc changes.
 
@@ -70,26 +84,37 @@ the session is still usable.
 
 ## Updates
 
-**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.3`). The
+**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.4`). The
 client asks GitHub for the latest release once (cached for 6 hours; offline/rate-limit/CORS
 failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
 link opens the GitHub release page.
 
-**Updating (third-party plugins are uninstall + reinstall)**:
+**Option 1 — plugin market (real Update entry)**
+
+The plugin is published to npm with a format-1 market index:
+
+```
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+```
+
+Add it under **Discover → Add index source**; the entry then shows "Update available" when a
+newer version is in the index, and DSH installs it through the plugin manager (`dsh-remote-console@<version>`
+from npm). The install location and the data directory stay the same.
+
+**Option 2 — manual reinstall (no market enabled)**
 
 1. Sidebar → **Plugins** → installed plugins → `dsh-remote-console` → **Uninstall** (confirmed).
-2. **Add plugin** → `github:cccodder/dsh-remote-console` → install → **Enable now**.
+2. **Add plugin** → `dsh-remote-console` (npm) or `github:cccodder/dsh-remote-console`
+   (latest commit) → install → **Enable now**.
 3. Restart the DSH desktop app once. The plugin re-runs `apply()` on hot reload and the wrap is
    idempotent now, but a restart is the clean path (stale wraps from 0.6.0/0.6.1 need it).
 
 Hosts and `hosts.tsv` live in `~/.dsh/remote-console/`, outside the package, so uninstalling
 does not lose them.
 
-**Why there is no one-click Update button**: the plugin manager only offers *Update* for
-official on-demand plugins; third-party plugins must be uninstalled and reinstalled (the
-install dialog says so too). Getting the "update available" state would require publishing to
-npm or shipping a DSH plugin-market index (format 1, git sources pinned to a commit) — a
-possible follow-up.
+**About one-click updates**: the plugin manager only offers *Update* for official on-demand
+plugins. Third-party plugins get the same experience by shipping a plugin market index
+(`market/index.json` in this repository) or being published to npm for the manager to install.
 
 ## Security
 
@@ -137,7 +162,7 @@ possible follow-up.
 ## Development
 
 ```bash
-npm test    # 66 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
+npm test    # 69 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
 ```
 
 Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` symlinks the peer packages
