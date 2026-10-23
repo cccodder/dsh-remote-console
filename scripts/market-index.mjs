@@ -8,8 +8,8 @@
  * - 保留 market/index.json 里已有的历史版本，按 SemVer 降序输出；
  * - 只声明 npm 源（本项目同时发布到 npm），Git 源不写进索引，避免两套来源不一致。
  *
- * 索引 URL（给用户在「发现 → 添加索引源」里填）：
- *   https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+ * 索引 URL（给用户在「发现 → 添加索引源」里填；jsDelivr 镜像，国内可用）：
+ *   https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -20,7 +20,7 @@ const root = join(here, '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const outFile = join(root, 'market', 'index.json');
 
-const INDEX_URL = 'https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json';
+const INDEX_URL = 'https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json';
 const REGISTRY = 'https://registry.npmjs.org';
 
 function parseArgs(argv) {

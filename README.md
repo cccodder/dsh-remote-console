@@ -26,8 +26,12 @@ DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码�
 **插件市场（推荐，能显示「有新版本」）**：插件市场索引（DSH plugin market format 1）：
 
 ```
-https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
 ```
+
+> 这是 jsDelivr 镜像，国内网络通常可用。如果它不通，可改用 GitHub 原链
+> `https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json`，
+> 或把仓库里的 `market/index.json` 放到你自己的静态服务器上（索引就是一份 JSON）。
 
 1. 侧栏「发现」（需要启用实验性 bundle `@deepseek-ai/dsh-experimental-plugin-market-bundle`）。
 2. 「添加索引源」→ 粘贴上面的 URL。
@@ -82,7 +86,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ## 更新
 
 **怎么知道有新版本**：面板底部左侧是「密码只在终端里输入…」，右侧显示当前版本
-（如 `v0.6.4`）。客户端会查一次 GitHub 最新 Release（结果缓存 6 小时，离线/限流/CORS
+（如 `v0.6.5`）。客户端会查一次 GitHub 最新 Release（结果缓存 6 小时，离线/限流/CORS
 失败都静默），发现更高版本时在同一位置显示「有新版本 vX.Y.Z」，点开是 GitHub Release 页。
 
 **方式一：插件市场（有真正的「更新」入口）**
@@ -90,12 +94,15 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 插件已发布到 npm，并提供 format 1 的市场索引：
 
 ```
-https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
 ```
 
 在侧栏「发现」→「添加索引源」里加上这个 URL 后，发现页会列出本插件；索引里的版本比
 已安装的新时显示「有新版本」，点一下就走 DSH 的安装/更新流程（安装源是 npm 的
 `dsh-remote-console@<version>`）。安装位置不会变，数据目录也不受影响。
+
+> 索引源只接受 JSON 的 URL。jsDelivr 不通时换 raw 原链，或把 `market/index.json`
+> 放到你自己的静态服务器上——内容一样，DSH 不关心它托管在哪。
 
 **方式二：手动重装（没有启用插件市场时）**
 

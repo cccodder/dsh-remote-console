@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.5
+
+插件市场索引换成国内可达的地址，并修正索引里「指向未发布版本」的问题。
+
+### Changed
+
+- **索引 URL 改用 jsDelivr 镜像**：
+  `https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json`。
+  实测在受限网络里 `raw.githubusercontent.com` 不通而 jsDelivr 可用；README 里同时写了
+  raw 原链和「自托管一份 `market/index.json`」的兜底，索引内容完全相同。
+- **`scripts/market-index.mjs` 只保留 npm 上真实存在的版本**：上一版把从未发布过的
+  0.6.3 也写进了索引，用户点到会装不上。现在会读 npm registry 的版本表过滤历史条目，
+  并用 registry 的发布时间；离线时才保留本地历史。
+
+### Tests
+
+69 个（索引测试的基准 URL 同步为 jsDelivr）。
+
 ## 0.6.4
 
 发布到 npm，并附带 DSH 插件市场索引（format 1），第三方插件因此有了真正的「更新」入口。

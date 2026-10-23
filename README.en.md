@@ -30,7 +30,7 @@ Requires DSH `>= 0.2.1-rc.2 <0.3.0` and a system `ssh` client.
 (format 1) is published with the repository:
 
 ```
-https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
 ```
 
 Add it under **Discover → Add index source**, then install from the list. When a newer
@@ -84,7 +84,7 @@ the session is still usable.
 
 ## Updates
 
-**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.4`). The
+**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.5`). The
 client asks GitHub for the latest release once (cached for 6 hours; offline/rate-limit/CORS
 failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
 link opens the GitHub release page.
@@ -94,12 +94,15 @@ link opens the GitHub release page.
 The plugin is published to npm with a format-1 market index:
 
 ```
-https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/market/index.json
+https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json
 ```
 
 Add it under **Discover → Add index source**; the entry then shows "Update available" when a
 newer version is in the index, and DSH installs it through the plugin manager (`dsh-remote-console@<version>`
 from npm). The install location and the data directory stay the same.
+
+> If jsDelivr is unreachable on your network, use the raw GitHub URL or host
+> `market/index.json` on your own static server — it is just a JSON document.
 
 **Option 2 — manual reinstall (no market enabled)**
 
