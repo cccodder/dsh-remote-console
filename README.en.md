@@ -24,6 +24,8 @@ appear in the window like human typing, and the exit code comes from the shell's
 
 Requires DSH `>= 0.2.1-rc.2 <0.3.0` and a system `ssh` client.
 
+**CLI-managed profile** (e.g. `web`):
+
 ```bash
 # 1. install into a profile (replace "web" with your profile name)
 dsh plugin --profile web add /path/to/dsh-remote-console
@@ -35,6 +37,12 @@ dsh plugin --profile web add /path/to/dsh-remote-console
 # 3. confirm the layer is composed (expect: id: dsh-remote-console)
 dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ```
+
+**Electron desktop app**: the `desktop` profile is owned by the app and the CLI refuses it
+(`profile "desktop" is managed exclusively by the Electron application`). Install through the
+in-app plugin manager with the repository address (`github:cccodder/dsh-remote-console`); it
+writes `dependencies` and `dsh.profile.bundles` for you. The global `dsh` CLI may be older
+than the DSH bundled in the app — the app's version is the one that counts.
 
 No Python, no edits to `~/.ssh/config`, no shell rc changes.
 
@@ -48,11 +56,17 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | Tool | Purpose |
 | --- | --- |
 | `remote_status` | Console, host, socket, state, last screen lines |
-| `remote_run(command)` | Write into the same PTY (visible in the window), return stdout + real exit code |
+| `remote_run(command)` | Write into the same PTY (visible in the window), return output + real exit code (the PTY merges stderr into it) |
 | `remote_exec(command, cwd?)` | Out-of-band execution over the ControlMaster socket: native stdout/stderr/exit code, no terminal noise |
 | `remote_screen(lines)` | Current screen as plain text (ANSI stripped) |
 | `remote_log(cursor)` | Incremental read of the unified JSONL log (human commands, agent commands, both outputs) |
 | `remote_close()` | Close the ssh master and clean up socket/rendezvous files |
+
+**`exit` semantics**: host launchers and "new session" are one-shot — when the remote shell
+exits (`exit`/`logout` in a command, or ssh drops), the whole console ends, every `remote_*`
+tool stops working, and a human must reopen the terminal and log in again. Such commands ask
+for approval first, and the terminal says plainly that it has ended instead of pretending
+the session is still usable.
 
 ## Security
 
@@ -65,7 +79,8 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
   plugin adds a gate: patterns such as `rm -rf`, `mkfs`, `dd of=/dev/*`,
   `shutdown/reboot`, fork bombs, `curl | sh`, `git push --force`, `DROP TABLE` trigger a
   one-shot approval card through DSH's `ctx.approval`. A grant covers that command only;
-  with no approval service mounted the command fails closed.
+  with no approval service mounted the command fails closed. `exit`/`logout`/`pkill ssh` in
+  `remote_run` (which end the whole console) ask for approval too.
 - **Logs disappear**: the per-session JSONL is deleted when the PTY ends; logs left behind
   by a DSH crash are swept on the next plugin start. Known secret shapes (Bearer tokens,
   `sk-*`, `password=/token=/secret=`) are redacted, but plaintext secrets inside command
@@ -99,7 +114,7 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 ## Development
 
 ```bash
-npm test    # 44 tests: pure helpers, danger patterns, wrapper menu, plugin load, command channel
+npm test    # 61 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
 ```
 
 Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` symlinks the peer packages

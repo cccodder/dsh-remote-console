@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -31,6 +31,12 @@ describe('redact', () => {
     assert.equal(redact('password=hunter2'), 'password=[REDACTED]');
     assert.equal(redact('token: s3cr3t'), 'token: [REDACTED]');
     assert.ok(!redact('key sk-1234567890abcd').includes('sk-1234567890abcd'));
+  });
+
+  it('不误伤 PWD= 这类正常 shell 变量', () => {
+    assert.equal(redact('echo "PWD=/home/sunhe"'), 'echo "PWD=/home/sunhe"');
+    assert.equal(redact('cd $PWD'), 'cd $PWD');
+    assert.equal(redact('PWD=/tmp && ls'), 'PWD=/tmp && ls');
   });
 });
 
@@ -91,6 +97,24 @@ describe('dangerousMatches', () => {
   for (const command of safe) {
     it(`放行: ${command}`, () => {
       assert.deepEqual(dangerousMatches(command), []);
+    });
+  }
+});
+
+describe('terminatingMatches（会结束整个 console 的命令）', () => {
+  const terminating = ['exit', 'exit 42', 'logout', 'cd /tmp; exit 3', 'pkill -f ssh', 'sudo pkill ssh'];
+
+  for (const command of terminating) {
+    it(`拦截: ${command}`, () => {
+      assert.ok(terminatingMatches(command).length > 0, `expected ${command} to terminate the console`);
+    });
+  }
+
+  const safe = ['echo exit', 'grep exit file.txt', 'exit_code=1', 'echo exit 0', 'ls; echo done', 'cat ./login.txt'];
+
+  for (const command of safe) {
+    it(`放行: ${command}`, () => {
+      assert.deepEqual(terminatingMatches(command), []);
     });
   }
 });

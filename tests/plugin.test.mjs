@@ -138,6 +138,35 @@ describe('apply()', () => {
     assert.equal(asked.length, 2);
   });
 
+  it('会结束终端的命令（exit）在 remote_run 上要审批', async () => {
+    const { gateDangerousCommand } = __testing;
+    const asked = [];
+    const guardedCtx = {
+      get(name) {
+        if (name !== 'approval') return undefined;
+        return {
+          async request(req) {
+            asked.push(req);
+            return 'allowed-once';
+          },
+        };
+      },
+    };
+    const exec = { agent: { id: 'a1' }, callId: 'c1' };
+
+    // remote_run 上要拦
+    await gateDangerousCommand(guardedCtx, exec, 'cd /tmp; exit 42', 'remote_run', undefined, {
+      checkTerminating: true,
+    });
+    assert.equal(asked.length, 1);
+    assert.match(asked[0].reason, /结束整个 SSH 终端/u);
+    assert.match(asked[0].reason, /shell-exit/u);
+
+    // remote_exec 是 sh -c 子进程，exit 不会结束 console，不拦
+    await gateDangerousCommand(guardedCtx, exec, 'exit 42', 'remote_exec');
+    assert.equal(asked.length, 1);
+  });
+
   it('dispose 不抛错（保留运行中的包装）', () => {
     assert.equal(typeof dispose, 'function');
     dispose();

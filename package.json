@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-console",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Right-sidebar SSH remote console for DeepSeek Harness: in-terminal host menu, PTY capture, unified human+agent log, and agent tools that write into the same terminal.",
   "type": "module",
   "main": "lib/index.js",
@@ -16,7 +16,8 @@
     "cordis.patch.yml",
     "README.md",
     "README.en.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node tests/link-peers.mjs && node --test tests/*.test.mjs"

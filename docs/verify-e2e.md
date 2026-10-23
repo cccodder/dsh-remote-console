@@ -74,6 +74,11 @@ tail -5 ~/.dsh-verify/remote-console/plugin.log
       应弹出 DSH 审批卡片；拒绝后命令未执行，返回 `DANGEROUS_REJECTED`。
 - [ ] 认证期拒写：在终端里让 `sudo` 停在密码提示，再让 agent 调 `remote_run`，
       应返回 `AUTH_REQUIRED` 而不是替你输密码。
+- [ ] `exit` 语义（0.6.1）：`remote_run("exit 42")` 先弹审批；批准后终端显示
+      「这个终端已经结束」并提示重新登录，`remote_status` 返回 `NO_LIVE_CONSOLE`；
+      `remote_exec("exit 42")` 不弹审批（它是 `sh -c` 子进程，不会结束 console）。
+- [ ] macOS：打开 console 时终端首行没有 `date: invalid argument`；
+      `cat ~/.dsh-verify/remote-console/wrapper.log` 的时间戳是完整 ISO 时间。
 
 ## 5. 安全与清理
 

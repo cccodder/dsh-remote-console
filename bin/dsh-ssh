@@ -20,7 +20,8 @@ DRYRUN="${DSH_RC_DRYRUN:-0}"
 # 才退回 -F ~/.ssh/config，避免在正常机器上绕过系统 ssh 配置。
 # 判定两路：① 系统配置文件属主既不是 root 也不是当前用户 → 认定坏；
 #          ② 否则用 `ssh -G localhost` 探测一次。
-_wrapper_log() { mkdir -p "$RC_DIR" 2>/dev/null; printf '%s %s\n' "$(date -Is)" "$*" >> "$RC_DIR/wrapper.log" 2>/dev/null; }
+_ts() { date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf 'unknown'; }
+_wrapper_log() { mkdir -p "$RC_DIR" 2>/dev/null; printf '%s %s\n' "$(_ts)" "$*" >> "$RC_DIR/wrapper.log" 2>/dev/null; }
 _force_f=0
 _why="ok"
 for f in /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*; do
@@ -235,13 +236,19 @@ run_ssh() {
   osc "RETURN ${code}"
   rm -f "$sess"
   echo
-  if [ "$ASK_TARGET" = "1" ]; then
-    echo "── ssh 已退出（退出码 $code）──"
-  else
+  if [ "${IN_MENU:-0}" = "1" ]; then
     echo "── ssh 已退出（退出码 $code），回到远端选择 ──"
+  else
+    echo "── ssh 已退出（退出码 $code）──"
+    echo "   这个终端已经结束（ssh 进程退出），工具会拒绝写入。"
+    echo "   请关闭此标签，在右侧栏重新打开 SSH 终端并重新登录。"
   fi
   return "$code"
 }
+
+# 一次性模式（面板指定主机 / 新建会话）：ssh 退出后整个终端结束，
+# 提示语必须说清楚，不能让 agent 以为还能继续用。
+IN_MENU=0
 
 if [ -n "${FORCED_HOST:-}" ]; then
   _u=""; _p=""
@@ -270,6 +277,7 @@ if [ "$ASK_TARGET" = "1" ]; then
 fi
 
 # 主循环
+IN_MENU=1
 while true; do
   PICKED_HOST=""; PICKED_USER=""; PICKED_PORT=""
   pick_host || { rc=$?; [ "$rc" = "2" ] && { echo "已退出。"; exit 0; }; continue; }

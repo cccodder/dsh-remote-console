@@ -1,5 +1,9 @@
 # 代码审计（0.6.0）
 
+> 0.6.1 追加：按实机测试报告修了三个 bug（macOS `date -Is`、`exit` 后提示语误导、
+> `PWD=` 被误脱敏），并把 `exit`/`logout`/`pkill ssh` 纳入审批、`remote_run` 输出字段
+> 改名。明细见 [CHANGELOG.md](../CHANGELOG.md)。
+
 审计对象：`dsh-remote-console` 0.5.8（用户交付的 Repomix 快照），基线 DSH `0.2.1-rc.2`。
 方法：逐行阅读 + 对照本机 DSH 安装目录里的服务实现核对 API + 隔离 profile 实际装载 + 新增测试复现关键路径。
 
@@ -20,7 +24,7 @@
 | 5 | 低 | 自动初始化失败后每次出现提示符都会再次 `stty -echo` 注入，可能反复清屏 | `autoInitAttempts` 上限 3 次 |
 | 6 | 低 | `client.js` 的 `inject` 声明了 `shortcuts` 服务，实际未使用；`dsh.client.inject` 与内置终端插件不一致 | 去掉未使用的 `shortcuts`；`dsh.client.inject` 保持终端的两个必需包（与内置 `sidebar-terminal` 对齐核对过） |
 | 7 | 低 | `package.json` 缺 `engines`、`scripts.test`、`LICENSE`、`.gitignore`；peer 范围有重复段；`bin/dsh-ssh` 在 Repomix 里丢了可执行位 | 补齐并清理；`bin/dsh-ssh` 恢复 0755 |
-| 8 | 低 | 无测试、无验证文档；README 引用未随包发布的 `remote_console_design.md` | 新增 44 个测试（纯函数/危险命令/菜单包装器/插件装载/命令通道模拟）、`docs/verify-e2e.md`、README 重写 |
+| 8 | 低 | 无测试、无验证文档；README 引用未随包发布的 `remote_console_design.md` | 新增 61 个测试（纯函数/危险命令/菜单包装器/插件装载/命令通道模拟）、`docs/verify-e2e.md`、README 重写 |
 
 ## 核对过、不需要改的假设
 

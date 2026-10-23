@@ -21,8 +21,10 @@ DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码�
 
 要求：DSH `>= 0.2.1-rc.2 <0.3.0`，本机有系统 `ssh` 客户端。
 
+**CLI 管理的 profile**（例如 `web`）：
+
 ```bash
-# 1. 装进 profile（--profile 换成你自己的 profile 名，例如 web）
+# 1. 装进 profile（--profile 换成你自己的 profile 名）
 dsh plugin --profile web add /path/to/dsh-remote-console
 
 # 2. 把插件加进该 profile 的 bundle 列表
@@ -32,6 +34,12 @@ dsh plugin --profile web add /path/to/dsh-remote-console
 # 3. 确认插件层被组合进来（应看到 id: dsh-remote-console）
 dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ```
+
+**Electron 桌面版**：`desktop` profile 由 App 独占管理，CLI 会直接拒绝
+（`profile "desktop" is managed exclusively by the Electron application`）。
+请用 App 内置的**插件管理器**粘贴仓库地址安装（`github:cccodder/dsh-remote-console`），
+它会自动写入 profile 的 `dependencies` 与 `dsh.profile.bundles`。注意全局 `dsh` CLI
+版本可能低于 App 自带的 DSH，以 App 内的版本为准。
 
 不需要 Python、不需要改 `~/.ssh/config`、不改 shell rc。
 
@@ -44,7 +52,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | 工具 | 作用 |
 | --- | --- |
 | `remote_status` | 终端、主机、socket、状态、最后几行屏幕 |
-| `remote_run(command)` | 写进同一个 PTY（窗口里可见），返回 stdout + 真实退出码 |
+| `remote_run(command)` | 写进同一个 PTY（窗口里可见），返回输出 + 真实退出码（PTY 会把 stderr 并进输出） |
 | `remote_exec(command, cwd?)` | 复用 ControlMaster socket 的带外执行：原生 stdout/stderr/退出码，不污染终端窗口 |
 | `remote_screen(lines)` | 当前屏幕纯文本（剥 ANSI） |
 | `remote_log(cursor)` | 统一 JSONL 日志的增量读：人敲的命令、agent 的命令、两边输出 |
@@ -52,6 +60,11 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 
 `remote_run` 适合：要你看着执行、需要 TTY（sudo/vim/嵌套 ssh）、需要在两次调用间保留 shell 状态。
 `remote_exec` 适合：纯数据收集、脚本、必须用退出码判断成败的事。
+
+**注意 `exit` 的语义**：面板里的主机启动器和「新建会话」都是一次性的——远端 shell 退出
+（命令里带 `exit`、`logout`，或 ssh 断开）后，整个终端就结束了，所有 `remote_*` 工具失效，
+需要人工重新打开终端并重新输密码。插件会拦下这类命令要一次审批，并在终端里明确提示
+「这个终端已经结束」，不会假装还能继续用。
 
 ## 安全模型
 
@@ -63,6 +76,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
   命中 `rm -rf`、`mkfs`、`dd of=/dev/*`、`shutdown/reboot`、fork bomb、`curl | sh`、
   `git push --force`、`DROP TABLE` 等模式时，通过 DSH 的 `ctx.approval` 弹一次审批卡片，
   **一次授权只对本次命令有效**；没有审批服务（headless/未挂载 answerer）时直接拒绝执行。
+  `remote_run` 里会结束整个终端的 `exit` / `logout` / `pkill ssh` 同样需要审批。
 - **日志会消失**：PTY 结束即删除会话日志（保留内存事件供当场回看）；DSH 崩溃留下的
   残留日志会在下次插件启动时清扫。日志写入前会对 Bearer token、`sk-*`、
   `password=/token:/secret=` 一类赋值做脱敏，但**命令参数里的明文密钥仍可能出现在会话期间**，
@@ -97,7 +111,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ## 开发与测试
 
 ```bash
-npm test          # 44 个测试：纯函数、危险命令判定、菜单包装器、插件装载、命令通道模拟
+npm test          # 61 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
 ```
 
 测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包
