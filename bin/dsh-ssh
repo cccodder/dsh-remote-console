@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# dsh-ssh — DSH 远程控制终端的入口（终端内菜单）
+#
+# 用法：由 DSH 侧栏「新建终端」作为候选 shell 启动；DSH 会自动补一个 -i 参数，这里忽略。
+# 行为：
+#   1) 列出 ~/.ssh/config 里的 Host，或手动新建一个远端
+#   2) 选中后执行 ssh -F <cfg> -M -S <sock> -t <host>（窗口里能看到这行）
+#   3) 登录成功 → 停在远端 shell；ssh 退出/失败 → 自动回到菜单
+#
+# 安全：本脚本不接触密码；密码只由 ssh 自己在其提示符里读取。
+# 状态：在 <RC_DIR>/sessions/ 下写 rendezvous JSON，供 DSH 插件识别 terminal↔socket。
+
+set -u
+
+RC_DIR="${DSH_REMOTE_CONSOLE_DIR:-${DSH_HOME:-$HOME/.dsh}/remote-console}"
+SSH_CONFIG="${DSH_SSH_CONFIG:-$HOME/.ssh/config}"
+DRYRUN="${DSH_RC_DRYRUN:-0}"
+
+# 通用 ssh 配置前缀：默认配置能读就用默认；只有它坏了（例如 /etc/ssh 属主错误）
+# 才退回 -F ~/.ssh/config，避免在正常机器上绕过系统 ssh 配置。
+# 判定两路：① 系统配置文件属主既不是 root 也不是当前用户 → 认定坏；
+#          ② 否则用 `ssh -G localhost` 探测一次。
+_wrapper_log() { mkdir -p "$RC_DIR" 2>/dev/null; printf '%s %s\n' "$(date -Is)" "$*" >> "$RC_DIR/wrapper.log" 2>/dev/null; }
+_force_f=0
+_why="ok"
+for f in /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*; do
+  [ -e "$f" ] || continue
+  _owner=$(stat -c %U "$f" 2>/dev/null || echo unknown)
+  _me=$(id -un 2>/dev/null || echo nobody)
+  if [ "$_owner" != "root" ] && [ "$_owner" != "$_me" ]; then _force_f=1; _why="owner:$_owner:$f"; break; fi
+done
+if [ "$_force_f" = "0" ]; then
+  if ! ssh -G localhost >/dev/null 2>&1; then _force_f=1; _why="ssh-G-failed"; fi
+fi
+SSH_CFG=()
+if [ "$_force_f" = "1" ]; then
+  if [ -r "$SSH_CONFIG" ]; then SSH_CFG=(-F "$SSH_CONFIG"); else SSH_CFG=(-F /dev/null); fi
+fi
+if [ "$_force_f" = "1" ]; then
+  _wrapper_log "ssh config fallback: why=$_why cfg=${SSH_CFG[*]:-none}"
+fi
+
+SESS_DIR="$RC_DIR/sessions"
+SOCK_DIR="$RC_DIR/socks"
+HOSTS_FILE="$RC_DIR/hosts.tsv"
+mkdir -p "$SESS_DIR" "$SOCK_DIR" 2>/dev/null
+
+# 通过符号链接名直接指定主机（面板选择主机时用）：dsh-ssh-<host>
+SELF="$(basename "$0")"
+if [ "$SELF" != "dsh-ssh" ] && [ "${SELF#dsh-ssh-}" != "$SELF" ]; then
+  FORCED_HOST="${SELF#dsh-ssh-}"
+fi
+
+# 参数：DSH 会给候选 shell 追加 -i 之类；面板生成的启动器用 --host <host>
+ASK_TARGET=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -i|--interactive|-l|--login) shift ;;
+    --host|-H) FORCED_HOST="${2:-}"; shift 2 ;;
+    --host=*) FORCED_HOST="${1#--host=}"; shift ;;
+    --ask-target) ASK_TARGET=1; shift ;;
+    *) shift ;;
+  esac
+done
+
+osc() { printf '\033]1337;DSH-RC;%s\007' "$1"; }
+
+# 通过环境变量把命令结束钩子带进远端交互 shell：
+# 不往 shell 里打字 → 没有 stty -echo 的回显闪烁；第一次提示符前自动清屏。
+build_hook() {
+  printf '%s' 'r=$?; if [ -z "${__dsh_c-}" ]; then __dsh_c=1; printf "\033[2J\033[3J\033[H"; fi; printf "\033]1337;DSH;D;%d\007" "$r"'
+}
+
+list_aliases() {
+  if [ -r "$SSH_CONFIG" ]; then
+    awk '
+      /^[[:space:]]*[Hh][Oo][Ss][Tt][[:space:]]/ {
+        for (i = 2; i <= NF; i++) {
+          if ($i ~ /^[!*]/ || $i ~ /[?*]/ || $i == "Host") continue
+          print $i
+        }
+      }
+    ' "$SSH_CONFIG" | awk '!seen[$0]++'
+  fi
+}
+
+list_saved() {
+  [ -r "$HOSTS_FILE" ] || return 0
+  awk -F'\t' 'NF >= 1 && $1 != "" { print $1 }' "$HOSTS_FILE"
+}
+
+ssh_target_args() {
+  # $1=host  $2=user(可空)  $3=port(可空)
+  local host="$1" user="${2:-}" port="${3:-}"
+  printf '%s' "$host"
+  [ -n "$user" ] && printf ' %s' "$user"
+  [ -n "$port" ] && printf ' %s' "$port"
+}
+
+save_host() {
+  local host="$1" user="${2:-}" port="${3:-}"
+  [ -n "$host" ] || return 0
+  grep -qxF "$host" <(list_saved 2>/dev/null) 2>/dev/null && return 0
+  printf '%s\t%s\t%s\n' "$host" "$user" "$port" >> "$HOSTS_FILE" 2>/dev/null
+}
+
+# 从 hosts.tsv 取回某个 host 的用户名/端口（面板启动器只传 --host）。
+lookup_saved() {
+  [ -r "$HOSTS_FILE" ] || return 0
+  awk -F'\t' -v h="$1" '$1 == h { print $2; print $3; exit }' "$HOSTS_FILE"
+}
+
+pick_host() {
+  local -a hosts=()
+  local line
+  while IFS= read -r line; do [ -n "$line" ] && hosts+=("$line"); done < <({ list_aliases; list_saved; } | awk '!seen[$0]++')
+
+  echo
+  echo "┌──────────────────────────────────────────────────────────┐"
+  echo "│  DSH 远程控制终端                                         │"
+  echo "└──────────────────────────────────────────────────────────┘"
+  echo
+  local i=1 h
+  for h in "${hosts[@]}"; do
+    printf '  %2d) %s\n' "$i" "$h"
+    i=$((i + 1))
+  done
+  printf '   n) 新建远端…\n'
+  printf '   q) 退出\n'
+  echo
+  printf '选择: '
+  local choice
+  read -r choice || return 2
+
+  case "$choice" in
+    q|Q|quit|exit) return 2 ;;
+    n|N|new|新建) PICKED_HOST=""; PICKED_USER=""; PICKED_PORT=""; return 0 ;;
+  esac
+
+  if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#hosts[@]}" ]; then
+    PICKED_HOST="${hosts[$((choice - 1))]}"
+    PICKED_USER=""; PICKED_PORT=""
+    # 自定义主机的用户名/端口从 hosts.tsv 里取回
+    if [ -r "$HOSTS_FILE" ]; then
+      local fields
+      fields="$(awk -F'\t' -v h="$PICKED_HOST" '$1 == h { print $2; print $3; exit }' "$HOSTS_FILE")"
+      PICKED_USER="$(printf '%s\n' "$fields" | sed -n 1p)"
+      PICKED_PORT="$(printf '%s\n' "$fields" | sed -n 2p)"
+    fi
+    return 0
+  fi
+  echo "无效选择: $choice"
+  return 3
+}
+
+new_host() {
+  printf '主机 (host/IP): '
+  read -r PICKED_HOST || return 1
+  printf '用户名 (留空则用 ssh 配置/询问): '
+  read -r PICKED_USER || PICKED_USER=""
+  printf '端口 (留空默认 22): '
+  read -r PICKED_PORT || PICKED_PORT=""
+  [ -n "${PICKED_HOST:-}" ] || return 1
+  save_host "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}"
+  return 0
+}
+
+# 「新建会话」：不进菜单，直接问一个 user@host[:port]，然后进 ssh。
+ask_target() {
+  printf '新建 SSH 会话 —— 目标（user@host，可加 :port，直接回车取消）: '
+  local line
+  read -r line || return 1
+  line="${line//[[:space:]]/}"
+  [ -n "$line" ] || return 1
+  local user="" hostport="$line"
+  if [[ "$line" == *@* ]]; then
+    user="${line%%@*}"
+    hostport="${line#*@}"
+  fi
+  local host="$hostport" port=""
+  # 只在「恰好一个冒号」时按 host:port 解析，避免把 IPv6 拆错。
+  if [[ "$hostport" == *:*:* ]]; then
+    :
+  elif [[ "$hostport" == *:* ]]; then
+    host="${hostport%%:*}"
+    port="${hostport#*:}"
+  fi
+  [ -n "$host" ] || return 1
+  PICKED_HOST="$host"
+  PICKED_USER="$user"
+  PICKED_PORT="$port"
+  return 0
+}
+
+run_ssh() {
+  local host="$1" user="${2:-}" port="${3:-}"
+  local safe_host="${host//[^A-Za-z0-9._-]/_}"
+  local sock="$SOCK_DIR/${safe_host}.$$.sock"
+  local sess="$SESS_DIR/${safe_host}.$$.json"
+
+  local -a argv=(ssh)
+  if [ "${#SSH_CFG[@]}" -gt 0 ]; then argv+=("${SSH_CFG[@]}"); fi
+  argv+=(-M -S "$sock" -o ControlPersist=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+  [ -n "$port" ] && argv+=(-p "$port")
+  argv+=(-t)
+  local target
+  [ -n "$user" ] && target="${user}@${host}" || target="$host"
+  # 远端命令：带着 PROMPT_COMMAND/HISTCONTROL 启动登录交互 shell（bash -li）
+  local rcmd
+  rcmd="env PROMPT_COMMAND=$(printf '%q' "$(build_hook)") HISTCONTROL=$(printf '%q' "${HISTCONTROL:-}") bash -li"
+  local printed_args
+  printed_args=$(printf '%s ' "${argv[@]:1}" 2>/dev/null)
+  argv+=(-- "$target" "$rcmd")
+
+  # rendezvous 里带上 user/port：插件在登录成功那一刻据此写入 hosts.tsv
+  # （关标签会杀掉进程树，包装器退出时的保存来不及执行）。
+  local j_host j_user j_port
+  j_host="${host//[^A-Za-z0-9._:-]/}"
+  j_user="${user//[^A-Za-z0-9._-]/}"
+  j_port="${port//[^0-9]/}"
+  printf '{"host":"%s","user":"%s","port":"%s","socket":"%s","pid":%d,"startedAt":%d}\n' \
+    "$j_host" "$j_user" "$j_port" "$sock" "$$" "$(date +%s)" > "$sess" 2>/dev/null
+  osc "CONNECT ${host}"
+
+  printf '\n>> ssh %s-- %s\n\n' "$printed_args" "$target"
+  if [ "$DRYRUN" = "1" ]; then
+    echo "[dry-run] remote command: $rcmd"
+    echo "[dry-run] 以上命令不会真正执行"
+    rm -f "$sess"
+    return 0
+  fi
+
+  "${argv[@]}"
+  local code=$?
+  osc "RETURN ${code}"
+  rm -f "$sess"
+  echo
+  if [ "$ASK_TARGET" = "1" ]; then
+    echo "── ssh 已退出（退出码 $code）──"
+  else
+    echo "── ssh 已退出（退出码 $code），回到远端选择 ──"
+  fi
+  return "$code"
+}
+
+if [ -n "${FORCED_HOST:-}" ]; then
+  _u=""; _p=""
+  _fields="$(lookup_saved "$FORCED_HOST" 2>/dev/null)"
+  if [ -n "$_fields" ]; then
+    _u="$(printf '%s\n' "$_fields" | sed -n 1p)"
+    _p="$(printf '%s\n' "$_fields" | sed -n 2p)"
+  fi
+  run_ssh "$FORCED_HOST" "${_u:-}" "${_p:-}"
+  exit $?
+fi
+
+# 「新建会话」：问一个 user@host[:port] 就直接进 ssh，不显示菜单。
+if [ "$ASK_TARGET" = "1" ]; then
+  PICKED_HOST=""; PICKED_USER=""; PICKED_PORT=""
+  if ! ask_target; then
+    echo "已取消。"
+    exit 0
+  fi
+  run_ssh "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}"
+  _code=$?
+  if [ "$_code" = "0" ]; then
+    save_host "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}"
+  fi
+  exit "$_code"
+fi
+
+# 主循环
+while true; do
+  PICKED_HOST=""; PICKED_USER=""; PICKED_PORT=""
+  pick_host || { rc=$?; [ "$rc" = "2" ] && { echo "已退出。"; exit 0; }; continue; }
+  if [ -z "$PICKED_HOST" ]; then
+    new_host || { echo "已取消。"; continue; }
+  fi
+  run_ssh "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}" || true
+  osc "MENU"
+done

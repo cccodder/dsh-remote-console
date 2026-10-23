@@ -1,0 +1,27 @@
+# 依赖、构建产物与测试挂载的 peer 软链接
+node_modules/
+pnpm-lock.yaml
+*.tgz
+tests/.dsh-peers/
+
+# 运行期数据：绝不要把真实主机的会话日志、socket、hosts.tsv 提交进仓库
+*.jsonl
+*.jsonl.*
+*.sock
+hosts.tsv
+remote-console/
+dsh-remote-console/
+
+# 密钥与环境
+.env
+.env.*
+*.pem
+*.key
+*.p12
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

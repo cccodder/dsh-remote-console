@@ -1,0 +1,6 @@
+# dsh-remote-console bundle patch: inserts the plugin row into any profile that
+# lists this package in its `dsh.profile.bundles`.
+- insert:
+    - id: dsh-remote-console
+      name: 'dsh-remote-console'
+      config: {}
