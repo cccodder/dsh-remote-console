@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-console",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Right-sidebar SSH remote console for DeepSeek Harness: in-terminal host menu, PTY capture, unified human+agent log, and agent tools that write into the same terminal.",
   "type": "module",
   "main": "lib/index.js",

@@ -111,7 +111,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 ## 开发与测试
 
 ```bash
-npm test          # 61 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
+npm test          # 64 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
 ```
 
 测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包

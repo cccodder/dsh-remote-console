@@ -114,7 +114,7 @@ the session is still usable.
 ## Development
 
 ```bash
-npm test    # 61 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
+npm test    # 64 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
 ```
 
 Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` symlinks the peer packages
