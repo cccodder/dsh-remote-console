@@ -68,6 +68,29 @@ tool stops working, and a human must reopen the terminal and log in again. Such 
 for approval first, and the terminal says plainly that it has ended instead of pretending
 the session is still usable.
 
+## Updates
+
+**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.3`). The
+client asks GitHub for the latest release once (cached for 6 hours; offline/rate-limit/CORS
+failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
+link opens the GitHub release page.
+
+**Updating (third-party plugins are uninstall + reinstall)**:
+
+1. Sidebar → **Plugins** → installed plugins → `dsh-remote-console` → **Uninstall** (confirmed).
+2. **Add plugin** → `github:cccodder/dsh-remote-console` → install → **Enable now**.
+3. Restart the DSH desktop app once. The plugin re-runs `apply()` on hot reload and the wrap is
+   idempotent now, but a restart is the clean path (stale wraps from 0.6.0/0.6.1 need it).
+
+Hosts and `hosts.tsv` live in `~/.dsh/remote-console/`, outside the package, so uninstalling
+does not lose them.
+
+**Why there is no one-click Update button**: the plugin manager only offers *Update* for
+official on-demand plugins; third-party plugins must be uninstalled and reinstalled (the
+install dialog says so too). Getting the "update available" state would require publishing to
+npm or shipping a DSH plugin-market index (format 1, git sources pinned to a commit) — a
+possible follow-up.
+
 ## Security
 
 - **Credentials never pass through the plugin**: the password is typed into `ssh`'s own
@@ -114,7 +137,7 @@ the session is still usable.
 ## Development
 
 ```bash
-npm test    # 64 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
+npm test    # 66 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
 ```
 
 Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` symlinks the peer packages

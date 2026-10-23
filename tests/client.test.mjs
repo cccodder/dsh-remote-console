@@ -6,6 +6,7 @@
  * 捕获它注册的 slot，然后直接调 inject(...).loadShells()。
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 let loaded;
@@ -107,5 +108,24 @@ describe('client apply 幂等性（插件热更新）', () => {
     assert.notEqual(ctx.webTerminals.launchShells, patched);
     const visible = await ctx.webTerminals.launchShells('session-1');
     assert.equal(visible.shells.length, BASE_SHELLS.length);
+  });
+});
+
+describe('更新检查', () => {
+  const plugin = loaded.factory(requireStub);
+  const { compareVersions, PLUGIN_VERSION } = plugin.__testing;
+
+  it('客户端版本号与 package.json 同步（发版时不能漏改）', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    assert.equal(PLUGIN_VERSION, pkg.version);
+  });
+
+  it('SemVer 比较', () => {
+    assert.ok(compareVersions('v0.7.0', '0.6.3') > 0);
+    assert.ok(compareVersions('0.6.3', 'v0.7.0') < 0);
+    assert.equal(compareVersions('v0.6.3', '0.6.3'), 0);
+    assert.ok(compareVersions('0.10.0', '0.9.9') > 0, '按数字而不是字符串比较');
+    assert.ok(compareVersions('0.6.3', '0.6.3-rc.1') > 0, '正式版高于预发布版');
+    assert.equal(compareVersions('not-a-version', '0.6.3'), 0);
   });
 });

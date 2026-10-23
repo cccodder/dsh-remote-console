@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.3
+
+面板里能看到「有没有新版本」，并补上更新路径说明。
+
+### Added
+
+- **版本号 + 更新提示**：SSH 面板底部显示当前版本（`v0.6.3`）。客户端向
+  `api.github.com` 查最新 Release（结果缓存 6 小时，失败静默），有更高版本时在同一行
+  显示「有新版本 vX.Y.Z」，点击打开 GitHub Release 页。
+- **版本号同步保护**：客户端是手写 bundle，版本号写在 `lib/client.js` 的 `VERSION` 里；
+  `tests/client.test.mjs` 断言它与 `package.json` 一致，发版漏改会直接红。
+- README 增加「更新」一节：为什么第三方插件没有一键更新、卸载重装的完整步骤、
+  数据目录不受影响、以及未来走 npm / 插件市场索引的选项。
+
+### Tests
+
+66 个测试（新增：客户端版本号与 package.json 同步、SemVer 比较）。
+
 ## 0.6.2
 
 修插件热更新（HMR）后「SSH 远程」面板变空的问题。
