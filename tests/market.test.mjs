@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index';
 
-const INDEX_URL = 'https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json';
+const INDEX_URL = 'https://cccodder.github.io/dsh-remote-console/market/index.json';
 const raw = JSON.parse(readFileSync(new URL('../market/index.json', import.meta.url), 'utf8'));
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
