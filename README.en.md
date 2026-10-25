@@ -17,6 +17,8 @@ byte stream, and gives the agent tools that write into the same terminal.
 
 ![The SSH remote panel in the right sidebar; example host names are redacted](docs/images/ssh-panel.png)
 
+![The agent running commands in the same remote terminal; example host names are redacted](docs/images/ssh-agent-terminal.png)
+
 ## Why
 
 Agent remote execution is usually a second, invisible SSH channel: you cannot see what it
