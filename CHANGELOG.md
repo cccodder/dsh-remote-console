@@ -8,6 +8,24 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-10-25
+
+### Added
+
+- README screenshots: the right-sidebar panel and the agent running commands in the user's
+  terminal. Real host names are redacted in both.
+- `SECURITY.md` (English and Chinese): supported versions, private reporting through GitHub
+  Security Advisories, what the plugin promises, and known limitations.
+- A weekly `DSH next compatibility` workflow: installs the DSH `next` peer packages and runs
+  the tests, so a DSH change that breaks the wrapped services shows up before users upgrade.
+
+### Changed
+
+- Positioning: the README intro (both languages), `package.json` description and the GitHub
+  About text now lead with "you and your agent share the same terminal"; the SSH login detail
+  moved to the second sentence.
+- README links to `SECURITY.md` and the development/release documents.
+
 ## [0.6.6] - 2026-10-25
 
 ### Added
@@ -143,7 +161,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...HEAD
+[0.6.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.3...v0.6.4
