@@ -145,6 +145,8 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 
 > 威胁模型：插件保护的是「凭据不被 agent/日志带走」和「破坏性操作需你点头」，
 > 它不能防御你已经授权的 agent 在远端做任何事。远端命令本身就是你给 agent 的能力。
+>
+> 发现安全问题请走私密渠道，见 [SECURITY.md](SECURITY.md)。
 
 ## 环境变量
 

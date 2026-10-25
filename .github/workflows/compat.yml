@@ -1,0 +1,52 @@
+name: DSH next compatibility
+
+# The plugin wraps DSH terminal services that are not documented extension points, so a DSH
+# minor release can break it. This weekly job installs the DSH `next` tag and runs the tests:
+# a green run means the pinned engines.dsh range can be widened in the next release; a red run
+# is the early warning to adapt the plugin before users upgrade.
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  next-dsh:
+    name: next DSH
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install DSH next peer packages
+        run: >-
+          npm install --no-save --no-package-lock
+          @deepseek-ai/dsh-home-paths@next
+          @deepseek-ai/dsh-tools@next
+          @deepseek-ai/dsh-plugin-market-index@next
+
+      - name: Report the versions under test
+        run: |
+          node -e '
+            const p = (name) => require(`${name}/package.json`).version;
+            for (const name of ['@deepseek-ai/dsh-home-paths', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-plugin-market-index']) {
+              console.log(`${name}@${p(name)}`);
+            }
+          '
+
+      - name: Unit tests against DSH next
+        run: npm test
+
+      - name: Release metadata
+        run: node scripts/check-release.mjs
+
+      - name: Reminder when the run is green
+        if: success()
+        run: |
+          echo "Tests pass on DSH next. Widen engines.dsh in package.json in the next release."
