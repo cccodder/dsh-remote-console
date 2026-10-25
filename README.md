@@ -6,8 +6,8 @@
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码，agent 通过**同一个 PTY** 读写远端；
-人的操作和 agent 的操作落在同一条可回看的日志里。
+DeepSeek Harness（DSH）右侧栏的 SSH 远程终端：你和 AI agent 在**同一个 PTY** 里操作远端主机。
+你亲自完成 SSH 登录，agent 通过同一个终端执行命令，双方的操作都写进同一条可回看的日志。
 
 它不重新实现终端：渲染、输入、窗口管理全部复用 DSH 自带的终端，插件只做三件事——
 往 shell 列表里加远端启动器、捕获这条 PTY 的字节流、给 agent 一组写进同一个终端的工具。
