@@ -1,6 +1,11 @@
 # dsh-remote-console
 
-English | [中文](README.md)
+[中文](README.md) | English
+
+![version](https://img.shields.io/github/v/release/cccodder/dsh-remote-console?label=version)
+![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 
 An SSH remote console for the DeepSeek Harness right sidebar. You type your SSH password
 yourself; the agent reads and writes the **same PTY** through plain text, and everything
@@ -168,12 +173,21 @@ plugins. Third-party plugins get the same experience by shipping a plugin market
 ## Development
 
 ```bash
-npm test    # 69 tests: pure helpers, danger/terminating patterns, wrapper menu, plugin load, command channel
+npm test        # 69 tests + release metadata checks
+npm run verify  # version / client VERSION / changelog / market index consistency only
 ```
 
-Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` symlinks the peer packages
-from your global DSH install, and `tests/console.test.mjs` replays OSC frames from a fake
-remote shell.
+Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` links the peer packages from
+your global DSH install (CI installs them with `npm install --no-save`), and
+`tests/console.test.mjs` replays OSC frames from a fake remote shell.
+
+- Development rules and branch model: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Agent rules: [AGENTS.md](AGENTS.md)
+- Manual end-to-end verification: [docs/verify-e2e.md](docs/verify-e2e.md)
+- Real-device release checklist: [docs/dev/release-checklist.md](docs/dev/release-checklist.md)
+- Release process: bump version + CHANGELOG + `npm run market:index` in a release PR, merge,
+  then publish the `vX.Y.Z` GitHub release; the workflow validates the tag, runs the tests,
+  publishes to npm with provenance and attaches the `.tgz` to the release.
 
 ## License
 

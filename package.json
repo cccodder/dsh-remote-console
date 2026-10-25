@@ -21,7 +21,8 @@
   ],
   "scripts": {
     "test": "node tests/link-peers.mjs && node --test tests/*.test.mjs",
-    "market:index": "node scripts/market-index.mjs"
+    "market:index": "node scripts/market-index.mjs",
+    "verify": "node scripts/check-release.mjs"
   },
   "keywords": [
     "dsh",

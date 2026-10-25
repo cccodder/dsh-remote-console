@@ -1,5 +1,11 @@
 # dsh-remote-console
 
+中文 | [English](README.en.md)
+
+![version](https://img.shields.io/github/v/release/cccodder/dsh-remote-console?label=version)
+![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码，agent 通过**同一个 PTY** 读写远端；
 人的操作和 agent 的操作落在同一条可回看的日志里。
 
@@ -164,14 +170,20 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 ## 开发与测试
 
 ```bash
-npm test          # 69 个测试：纯函数、危险命令/终止命令判定、菜单包装器、插件装载、命令通道模拟
+npm test      # 69 个测试 + 发版元数据检查
+npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引是否一致
 ```
 
 测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包
-软链进本目录（`node_modules/@deepseek-ai/{dsh-home-paths,dsh-tools}`），
+软链进本目录（CI 里改用 `npm install --no-save` 装同样的包），
 `tests/console.test.mjs` 用一个假远端 shell 回放 OSC 帧来验证退出码、回显剥离和超时。
 
-端到端验证（需要一台有 `ssh` 的机器）见 [docs/verify-e2e.md](docs/verify-e2e.md)。
+- 开发规则与分支模型：[CONTRIBUTING.md](CONTRIBUTING.md)（中文：[CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)）
+- AI 协作规则：[AGENTS.md](AGENTS.md)
+- 端到端验证（需要一台有 `ssh` 的机器）：[docs/verify-e2e.md](docs/verify-e2e.md)
+- 发版前真机清单：[docs/dev/release-checklist.md](docs/dev/release-checklist.md)
+- 发版流程：release PR 里改版本 + CHANGELOG + `npm run market:index`，合并后在 `main` 发布
+  `vX.Y.Z` Release；workflow 校验 tag、跑测试、带 provenance 发 npm 并把 `.tgz` 挂到 Release。
 
 ## 数据目录
 

@@ -48,6 +48,13 @@ function findInstall() {
   return undefined;
 }
 
+// CI 用 `npm install --no-save` 装好了 peer 包；本地已有就直接用，不再找全局 DSH。
+const localDir = join(root, 'node_modules', '@deepseek-ai');
+if ([...PEERS, ...TEST_LIBS].every((peer) => existsSync(join(localDir, peer, 'package.json')))) {
+  console.log('[link-peers] 本地 node_modules 已有 peer 包，跳过链接');
+  process.exit(0);
+}
+
 const nodeModules = findInstall();
 if (nodeModules === undefined) {
   console.error(
