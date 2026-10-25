@@ -148,6 +148,11 @@ plugins. Third-party plugins get the same experience by shipping a plugin market
   closing the browser kills it 8 s after the last window hold disappears (a refresh
   reconnects and cancels); if DSH crashes, the PTY master disappears and `ssh` exits on HUP.
 
+## Reporting a vulnerability
+
+Please report privately through GitHub Security Advisories, not in a public issue. The full
+policy (supported versions, what the plugin promises, known limitations) is in [SECURITY.md](SECURITY.md).
+
 ## Environment variables
 
 | Variable | Default | Meaning |
