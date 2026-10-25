@@ -14,6 +14,8 @@ DSH 右侧栏的「SSH 远程控制终端」：你在这里亲手输 SSH 密码�
 
 ![右侧栏的 SSH 远程面板；示例主机名已打码](docs/images/ssh-panel.png)
 
+![agent 在同一个远端终端里执行命令；示例主机名已打码](docs/images/ssh-agent-terminal.png)
+
 ## 它解决什么
 
 普通的「agent 远程执行」通常是另开一条 ssh 通道，于是：
