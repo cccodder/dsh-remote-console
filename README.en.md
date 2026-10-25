@@ -15,6 +15,8 @@ The plugin does not reimplement a terminal: rendering, input and window manageme
 DSH's own terminal. It only adds remote launchers to the shell list, captures that PTY's
 byte stream, and gives the agent tools that write into the same terminal.
 
+![The SSH remote panel in the right sidebar; example host names are redacted](docs/images/ssh-panel.png)
+
 ## Why
 
 Agent remote execution is usually a second, invisible SSH channel: you cannot see what it
