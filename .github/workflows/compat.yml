@@ -33,12 +33,7 @@ jobs:
 
       - name: Report the versions under test
         run: |
-          node -e '
-            const p = (name) => require(`${name}/package.json`).version;
-            for (const name of ['@deepseek-ai/dsh-home-paths', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-plugin-market-index']) {
-              console.log(`${name}@${p(name)}`);
-            }
-          '
+          npm ls --depth=0 @deepseek-ai/dsh-home-paths @deepseek-ai/dsh-tools @deepseek-ai/dsh-plugin-market-index || true
 
       - name: Unit tests against DSH next
         run: npm test
