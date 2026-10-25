@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-25
+
 ### Added
 
 - Release process: CI workflow (tests + release metadata) and a release workflow that
@@ -141,7 +143,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.5...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...HEAD
+[0.6.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.2...v0.6.3
