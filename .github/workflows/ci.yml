@@ -1,0 +1,46 @@
+name: CI
+
+# Runs on every pull request and on main. The release workflow repeats these checks
+# against the tagged commit, so a green PR is necessary but not the last word.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The tests load the real DSH peer packages. In a profile they come from DSH;
+      # here they are installed without touching package.json.
+      - name: Install DSH peer packages
+        run: >-
+          npm install --no-save --no-package-lock
+          @deepseek-ai/dsh-home-paths@0.2.1-rc.2
+          @deepseek-ai/dsh-tools@0.2.1-rc.2
+          @deepseek-ai/dsh-plugin-market-index@0.2.1-rc.2
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Release metadata (version / client / changelog / market index)
+        run: node scripts/check-release.mjs
+
+      - name: Market index parses with DSH's validator
+        run: node --test tests/market.test.mjs
