@@ -7,9 +7,9 @@
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 
-An SSH remote console for the DeepSeek Harness right sidebar. You type your SSH password
-yourself; the agent reads and writes the **same PTY** through plain text, and everything
-both sides do lands in one replayable log.
+An SSH remote console in the DeepSeek Harness (DSH) right sidebar: you and your agent work on
+the remote host through the **same PTY**. You complete the SSH login yourself; the agent runs
+commands through that same terminal; both sides write to one replayable activity log.
 
 The plugin does not reimplement a terminal: rendering, input and window management reuse
 DSH's own terminal. It only adds remote launchers to the shell list, captures that PTY's
