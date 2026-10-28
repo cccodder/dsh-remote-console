@@ -21,6 +21,7 @@ const {
   portAccepts,
   MAX_TEXT_WRITE_BYTES,
   resolveMaxTransferMB,
+  configNumber,
   maxTransferBytes,
   DEFAULT_MAX_TRANSFER_MB,
   MIN_MAX_TRANSFER_MB,
@@ -153,5 +154,22 @@ describe('单文件传输上限（可配）', () => {
 
   it('换算成字节数', () => {
     assert.equal(maxTransferBytes(), DEFAULT_MAX_TRANSFER_MB * 1024 * 1024);
+  });
+
+  it('volatile 字段的 { get() } 包装能被拆开（设置页保存后立即生效）', () => {
+    assert.equal(configNumber(512), 512);
+    assert.equal(configNumber({ get: () => 8 }), 8);
+    assert.equal(configNumber({ get: () => 'x' }, 256), 256);
+    assert.equal(configNumber({}, 256), 256);
+    assert.equal(configNumber(undefined, undefined), undefined);
+
+    const shared = __testing.state();
+    const original = shared.config;
+    try {
+      shared.config = { maxTransferMB: { get: () => 1024 } };
+      assert.equal(maxTransferBytes(), 1024 * 1024 * 1024);
+    } finally {
+      shared.config = original;
+    }
   });
 });

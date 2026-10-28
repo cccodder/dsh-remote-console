@@ -134,8 +134,8 @@ Hosts in the panel come from three places: `~/.ssh/config`, the plugin settings 
    comments. Example:
 
    ```
-   nas
-   ops@10.0.0.5:22
+   web-01
+   ops@203.0.113.10:22
    ```
 
 4. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh config,
@@ -171,7 +171,21 @@ client asks GitHub for the latest release once (cached for 6 hours; offline/rate
 failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
 link opens the GitHub release page.
 
-**Option 1 — plugin market (real Update entry)**
+**Option 1 — one-click hot update in the settings page (recommended)**
+
+Sidebar → **Plugins** → `dsh-remote-console` → its configuration page. Opening the page checks
+the latest release (GitHub, cached 6 hours, with a **Re-check** button). Once a newer version is
+available *and* npm has it, click **Update to vX.Y.Z**:
+
+1. the DSH plugin manager uninstalls the current version and installs the new one;
+2. DSH's HMR applies the change to the running process — **no restart**;
+3. the page reloads itself to pick up the new client bundle, and the version number changes.
+
+A failed install rolls back to the current version and shows the original error. If DSH reports
+that this change needs a restart, the page says so. Older deployments without
+`remote.pluginManager` disable the button and fall back to options 2/3.
+
+**Option 2 — plugin market**
 
 The plugin is published to npm with a format-1 market index:
 
@@ -189,7 +203,7 @@ from npm). The install location and the data directory stay the same.
 > (branch cache up to ~12h), the raw GitHub URL, or host `market/index.json` on your own
 > static server — it is just a JSON document.
 
-**Option 2 — manual reinstall (no market enabled)**
+**Option 3 — manual reinstall (no market enabled, or for cross-major troubleshooting)**
 
 1. Sidebar → **Plugins** → installed plugins → `dsh-remote-console` → **Uninstall** (confirmed).
 2. **Add plugin** → `dsh-remote-console` (npm) or `github:cccodder/dsh-remote-console`
@@ -200,9 +214,10 @@ from npm). The install location and the data directory stay the same.
 Hosts and `hosts.tsv` live in `~/.dsh/remote-console/`, outside the package, so uninstalling
 does not lose them.
 
-**About one-click updates**: the plugin manager only offers *Update* for official on-demand
-plugins. Third-party plugins get the same experience by shipping a plugin market index
-(`market/index.json` in this repository) or being published to npm for the manager to install.
+**About one-click updates**: DSH's own plugin manager only offers *Update* for official on-demand
+plugins, so this plugin turns "uninstall → install" into a button on its configuration page
+(0.10.4+) and lets HMR apply it live. The plugin market index (`market/index.json` in this
+repository) still fits first installs and deployments without a configuration page.
 If the index does not update or the version does not change after clicking update, see item 6 of
 [Troubleshooting](#troubleshooting).
 

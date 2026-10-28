@@ -8,6 +8,26 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Added
+
+- **设置页一键热更新**：配置页打开时自动检查 GitHub 最新 Release（缓存 6 小时，可「重新检查」），
+  发现新版本且 npm 已同步后显示「更新到 vX.Y.Z」。更新走 DSH 插件管理器的「卸载 → 安装」，
+  HMR 把改动热应用到运行中的进程（不需要重启），完成后自动刷新页面加载新的客户端 bundle；
+  安装失败自动装回当前版本并显示错误原文；DSH 判定必须重启时如实提示。没有
+  `remote.pluginManager` 的部署禁用按钮并提示手动更新。
+
+### Fixed
+
+- **设置页保存被 DSH 整体拒绝（0.10.3 回归）**：`maxTransferMB` 声明成了普通字段，而 DSH 的
+  `SettingsForms.write()` 只允许写 volatile 字段，设置页每次保存都被
+  `Config field "maxTransferMB" is not volatile` 拒绝——主机列表也一起写不进去。现在该字段
+  标成 volatile，读取时先拆开 schemastery 的 `{ get() }` 包装再按 1–2048 夹取。
+- **保存失败不再只显示一个 false**：有 `remote.settings` 服务时直连写入，每轮现读 revision、
+  冲突才自动重试，其它错误把原始 `error.message` 显示在页面上；没有该服务时退回 configForms
+  并显式传现读 revision。整体写入失败但主机列表写入成功时，界面标成「主机已保存、上限没写进去」
+  的 warning，而不是把两者都说成失败。
+
+
 ## [0.10.3] - 2026-10-28
 
 ### Added
