@@ -8,6 +8,16 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **插件重载后设置页保存必失败**：设置页不再 `dispose()` 宿主 `configForms` 里缓存的共享 form。
+  插件行禁用再启用会触发客户端插件卸载，旧代码在 effect 清理里把宿主这个 form 一起 dispose，
+  重新挂载时 `configForms.get()` 仍返回同一个已 dispose 的实例，`mutate` 一律返回 false
+  （revision 冻结不动），所有保存都失败。现在 form 的生命周期完全交给 `configForms`，卸载只
+  清理本插件自己的 slot 注册。
+- 失败诊断不再缺失原因：`mutate` / `set` 返回 false 时也把原因写进诊断串；「重新加载」按钮的
+  提示改为如实说明它会刷新页面、当前草稿会丢（之前写「草稿保留」）。
+
 ## [0.10.2] - 2026-10-28
 
 设置页「主机列表」重做，并修掉首次保存就报冲突的问题。
