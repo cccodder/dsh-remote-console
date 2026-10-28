@@ -140,6 +140,69 @@ describe('设置页注册（客户端）', () => {
     assert.deepEqual(injected, [['configForms']]);
   });
 
+  it('主机行解析：保留注释、去空行、拼接可逆', () => {
+    const client = loadClient();
+    const { hostsLinesFromValue, hostsValueFromLines } = client.__testing;
+    assert.deepEqual(hostsLinesFromValue('nas\n\n  ops@10.0.0.5:22  \n# 注释\n'), [
+      'nas',
+      'ops@10.0.0.5:22',
+      '# 注释',
+    ]);
+    assert.equal(hostsValueFromLines(['nas', 'ops@10.0.0.5:22']), 'nas\nops@10.0.0.5:22');
+    assert.deepEqual(hostsLinesFromValue(undefined), []);
+  });
+
+  it('保存：第一次被拒会重试一次，且不传 expectedRevision', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+    let calls = 0;
+    const secondWorks = {
+      mutate: async () => {
+        calls += 1;
+        return calls === 2;
+      },
+    };
+    assert.deepEqual(await saveHosts(secondWorks, ['nas']), { ok: true, attempts: 2, mode: 'mutate' });
+    assert.equal(calls, 2);
+
+    let fails = 0;
+    const alwaysFails = {
+      mutate: async () => {
+        fails += 1;
+        return false;
+      },
+    };
+    // mutate 两次都失败、没有 set 兜底时，返回明确失败
+    assert.deepEqual(await saveHosts(alwaysFails, ['nas']), { ok: false, attempts: 2, mode: 'mutate' });
+    assert.equal(fails, 2);
+
+    // 有 set 时用它兜底（单字段写入走另一条路径）
+    let setCalls = 0;
+    const withSet = {
+      mutate: async () => false,
+      set: async (field, value) => {
+        setCalls += 1;
+        assert.equal(field, 'hosts');
+        assert.equal(value, 'nas');
+        return true;
+      },
+    };
+    assert.deepEqual(await saveHosts(withSet, ['nas']), { ok: true, attempts: 3, mode: 'set' });
+    assert.equal(setCalls, 1);
+
+    const revisions = [];
+    await saveHosts(
+      {
+        mutate: async (ops, revision) => {
+          revisions.push(revision);
+          return true;
+        },
+      },
+      ['nas'],
+    );
+    assert.deepEqual(revisions, [undefined], '不传 expectedRevision，由服务端用最新修订号');
+  });
+
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {
     const client = loadClient();
     const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'package.json'), 'utf8'));
