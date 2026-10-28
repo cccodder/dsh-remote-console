@@ -107,26 +107,42 @@ tool stops working, and a human must reopen the terminal and log in again. Such 
 for approval first, and the terminal says plainly that it has ended instead of pretending
 the session is still usable.
 
-## Managing the host list from the settings page
+## Managing the host list
 
-Besides `~/.ssh/config`, the panel's host list can be maintained from the plugin's settings page
-(stored in this plugin row's profile config, so it survives reinstall):
+Hosts in the panel come from three places: `~/.ssh/config`, the plugin settings page
+(`config.hosts`), and `hosts.tsv` (written by the agent tools). Two ways to maintain them:
 
-1. Sidebar → **Plugins** → find the `dsh-remote-console` row → open its **configuration**.
-2. In "Hosts", put one host per line: an alias from `~/.ssh/config`, or `user@host[:port]`;
-   lines starting with `#` are comments. Example:
+**Option 1: the settings page (recommended)**
+
+1. Open **Plugins** in the sidebar (puzzle icon) → click the `dsh-remote-console` card.
+2. The package detail page shows the "Hosts" configuration section; the **configure** button on the
+   `dsh-remote-console` row under "Parts" opens the same page.
+3. One host per line: an `~/.ssh/config` alias, or `user@host[:port]`; lines starting with `#` are
+   comments. Example:
 
    ```
    nas
    ops@10.0.0.5:22
    ```
 
-3. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh
-   config, `user@host:port` targets skip the menu and connect directly.
+4. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh config,
+   `user@host:port` targets skip the menu and connect directly.
 
-The page writes `config.hosts` on this row's profile patch, so editing that file by hand works the
-same way. It needs DSH's settings/config-form service (`ctx.configForms`); without it the page is
-simply not registered and the terminal keeps working.
+> If neither the section nor the "configure" button appears, the deployment does not provide DSH's
+> settings service (`ctx.configForms`). Use option 2 — the terminal is unaffected.
+
+**Option 2: ask the agent (no settings page needed)**
+
+Just say "add ops@10.0.0.5:22 to the SSH list"; the agent uses these tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `remote_host_add(spec)` | Add to `hosts.tsv` (plugin data dir, 0600); the panel picks it up on refresh; re-adding updates |
+| `remote_host_list()` | List panel hosts and where each comes from (ssh config / settings page / hosts.tsv) |
+| `remote_host_remove(spec)` | Remove from `hosts.tsv` only (ssh config, keys and remote data untouched) |
+
+The two options store different things: the settings page writes `config.hosts` in the profile
+patch, the tools write `~/.dsh/remote-console/hosts.tsv`; the panel merges both.
 
 ## Updates
 

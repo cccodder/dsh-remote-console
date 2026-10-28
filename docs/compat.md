@@ -41,7 +41,7 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | 能力 | 依赖的 DSH 内部点 / 机制 | macOS | Linux | Windows | 备注 |
 | --- | --- | --- | --- | --- | --- |
 | 终端同屏（人与 agent 共用同一个 PTY） | `ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells/retain`、客户端 `ctx.webTerminals.launchShells` | ✅ | ✅ | ✅（实验性） | 核心能力；渲染/输入复用 DSH 自带终端。Windows 用 Node 版包装器 `bin/dsh-ssh.mjs`，启动器是 `node dsh-ssh.mjs --host/--target` |
-| 13 个工具（终端 6 个 + 文件 4 个 + 转发 1 个 + 审计 2 个） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ✅（PTY 回退） | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志）。Windows 无 ControlMaster 时自动走 PTY：命令/数据在窗口可见、stdout/stderr 合并、传输 ≤1 MiB |
+| 16 个工具（终端 6 个 + 文件 4 个 + 转发 1 个 + 审计 2 个 + 主机列表 3 个） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ✅（PTY 回退） | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志）。Windows 无 ControlMaster 时自动走 PTY：命令/数据在窗口可见、stdout/stderr 合并、传输 ≤1 MiB |
 | 文件传输（`remote_upload` / `remote_download`） | 已认证的 ControlMaster socket（`remote_exec` 通道）；无 socket 时 PTY + base64 分块 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 必须先有活着的 SSH 终端；流式传输并双向校验 sha256；默认不覆盖；单文件上限 256 MB（PTY 通道 1 MiB）；`remote_upload` 写敏感远端路径前审批 |
 | 文件读写（`remote_read_file` / `remote_write_file`） | 已认证的 ControlMaster socket；无 socket 时 PTY + base64 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 读：默认 128 KB、上限 256 KB，二进制拒绝显示；写：≤256 KB UTF-8；socket 通道走 stdin 不进窗口，PTY 通道会经过用户窗口；敏感路径审批 |
 | 端口转发（`remote_forward` start/stop/list） | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>`（需要 ControlMaster） | ✅ | ✅ | ❌ | 只绑回环地址，局域网其他机器连不上；终端结束或 `remote_close` 时自动停止；不重新认证。Windows 没有可复用连接，明确报 `FORWARD_UNAVAILABLE` |
