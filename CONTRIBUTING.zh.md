@@ -66,6 +66,9 @@ node --test tests/market.test.mjs   # 用 DSH 自己的解析器校验 market/in
 
 ## 发一个版本
 
+0. **先取得维护者同意。** 这个项目发版是刻意低频的：拿到明确的「可以发 X.Y.Z」之前，
+   不要改版本号、不要合并 release PR、不要打 tag、不要创建 GitHub Release（创建 release 就会
+   触发 npm 发布）。
 1. **release PR**：从 `main` 拉分支，提升 `package.json#version`（以及 `lib/client.js` 的
    `VERSION`），把 `CHANGELOG.md` 的 `## [Unreleased]` 落成
    `## [X.Y.Z] - YYYY-MM-DD` 并加 compare 链接，然后跑 `npm run market:index` 让

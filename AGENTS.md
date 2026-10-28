@@ -30,6 +30,10 @@ writes the **same PTY** through text tools. Nothing in DSH itself is modified.
 6. **Transfers ride the existing session.** File transfer and port forwarding reuse the
    ControlMaster socket the user authenticated; never add a second connection, a stored
    password, or an sshpass-style helper. When the socket is gone the tools must fail closed.
+7. **A release needs the user's explicit approval.** Do not bump the version, merge a release PR,
+   push a tag, create a GitHub release or trigger a publish step without a clear "go" from the
+   user. Prepare the change, report what and why, and wait. Creating the GitHub release is the
+   publish trigger, so it counts as releasing.
 
 ## Commands
 
