@@ -7,8 +7,16 @@ CI 只跑单元测试（无 `ssh`、无 PTY、无浏览器）。真实 SSH 登�
 改动涉及 macOS 时在 macOS 上也做；结果按「通过 / 不通过 / 备注」贴在 release PR 的评论里，
 不通过就开 Issue。
 
+## 0. 先取得同意（硬性）
+
+- [ ] 用户已经明确说「可以发 X.Y.Z（或这个批次版本）」。没有这句话，就不要动
+      `package.json` 版本、不合并 release PR、不打 tag、不创建 GitHub Release——发版流程是
+      workflow-only，创建 release 就等于发 npm。
+- [ ] 改动范围与发版理由已经报给用户（一句话：改了什么、为什么现在发、风险点）。
+
 ## 准备
 
+- [ ] 已拿到用户的发版同意（见第 0 步）。
 - [ ] `package.json` 版本已提升，`lib/client.js` 的 `VERSION` 同步，`CHANGELOG.md` 已落版。
 - [ ] `npm run market:index` 已跑，`market/index.json` 里能看到新版本。
 - [ ] `npm test` 和 `node scripts/check-release.mjs` 全绿。

@@ -74,6 +74,9 @@ A change touching those needs the manual checklist.
 
 ## Release a version
 
+0. **Get the maintainer's go-ahead first.** This project releases rarely and on purpose: wait for
+   an explicit "yes, release X.Y.Z" before touching the version, merging a release PR, tagging or
+   publishing a GitHub release (creating the release is what publishes to npm).
 1. **Release PR.** Branch from `main`, bump `package.json#version` (and `lib/client.js`
    `VERSION`), move the `## [Unreleased]` section in `CHANGELOG.md` to
    `## [X.Y.Z] - YYYY-MM-DD`, add the compare link, then run `npm run market:index` so
