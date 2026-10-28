@@ -8,6 +8,14 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-28
+
+### Fixed
+
+- npm 包页面上的相对链接与截图：README 里的 `docs/compat.md`、`SECURITY.md`、`CONTRIBUTING.md`、
+  `docs/images/*.png` 等引用改为 GitHub 绝对地址，npm 页面不再出现 404 链接和裂图
+  （仓库内浏览不受影响）。
+
 ## [0.7.0] - 2026-10-28
 
 文件传输与端口转发：agent 现在能在**用户已经登录的那个连接**上搬文件、开隧道，
@@ -197,7 +205,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...v0.7.0
 [0.6.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.5...v0.6.6

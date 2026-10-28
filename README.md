@@ -1,6 +1,6 @@
 # dsh-remote-console
 
-中文 | [English](README.en.md)
+中文 | [English](https://github.com/cccodder/dsh-remote-console/blob/main/README.en.md)
 
 ![version](https://img.shields.io/github/v/release/cccodder/dsh-remote-console?label=version)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
@@ -12,9 +12,9 @@ DeepSeek Harness（DSH）右侧栏的 SSH 远程终端：你和 AI agent 在**�
 它不重新实现终端：渲染、输入、窗口管理全部复用 DSH 自带的终端，插件只做三件事——
 往 shell 列表里加远端启动器、捕获这条 PTY 的字节流、给 agent 一组写进同一个终端的工具。
 
-![右侧栏的 SSH 远程面板；示例主机名已打码](docs/images/ssh-panel.png)
+![右侧栏的 SSH 远程面板；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-![agent 在同一个远端终端里执行命令；示例主机名已打码](docs/images/ssh-agent-terminal.png)
+![agent 在同一个远端终端里执行命令；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
 ## 它解决什么
 
@@ -31,7 +31,7 @@ DeepSeek Harness（DSH）右侧栏的 SSH 远程终端：你和 AI agent 在**�
 
 要求：DSH `>= 0.2.1-rc.2 <0.3.0-0`，本机有系统 `ssh` 客户端。
 版本、平台与能力的完整矩阵（含未验证项、Windows 说明、pnpm 11 安装注意事项）见
-[docs/compat.md](docs/compat.md)。
+[docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md)。
 
 **npm 包名**：`dsh-remote-console`（https://www.npmjs.com/package/dsh-remote-console）。
 
@@ -103,7 +103,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 不弹密码、不重新认证，但**必须先有一个活着的 SSH 终端**；终端一结束它们立即失败
 （`BatchMode=yes`，fail closed）。`remote_upload` / `remote_write_file` 写 `~/.ssh`、`/etc`、
 sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/平台的完整矩阵见
-[docs/compat.md](docs/compat.md)。
+[docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md)。
 
 **注意 `exit` 的语义**：面板里的主机启动器和「新建会话」都是一次性的——远端 shell 退出
 （命令里带 `exit`、`logout`，或 ssh 断开）后，整个终端就结束了，所有 `remote_*` 工具失效，
@@ -171,7 +171,7 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 > 威胁模型：插件保护的是「凭据不被 agent/日志带走」和「破坏性操作需你点头」，
 > 它不能防御你已经授权的 agent 在远端做任何事。远端命令本身就是你给 agent 的能力。
 >
-> 发现安全问题请走私密渠道，见 [SECURITY.md](SECURITY.md)。
+> 发现安全问题请走私密渠道，见 [SECURITY.md](https://github.com/cccodder/dsh-remote-console/blob/main/SECURITY.md)。
 
 ## 环境变量
 
@@ -187,7 +187,7 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 ## 故障排查
 
 先按「找不到日志」一节确认日志位置，再对号入座。版本/平台层面的差异（DSH 0.3.0、Windows、
-pnpm 11）见 [docs/compat.md](docs/compat.md)；认证、审批、日志留存的设计见[安全模型](#安全模型)。
+pnpm 11）见 [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md)；认证、审批、日志留存的设计见[安全模型](#安全模型)。
 
 ### 1. 终端报 `ssh: command not found`
 
@@ -207,7 +207,7 @@ sudo dnf install -y openssh-clients
 # macOS 系统自带 /usr/bin/ssh，一般不需要安装
 ```
 
-Windows 目前不支持，见 [docs/compat.md](docs/compat.md#平台)。
+Windows 目前不支持，见 [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)。
 
 ### 2. `Bad owner or permissions on ...`
 
@@ -335,14 +335,14 @@ cat ~/.dsh/remote-console/selftest.log
 
 ## 兼容性与限制
 
-完整的版本 × 平台 × 能力矩阵（含未验证项与安装注意事项）见 [docs/compat.md](docs/compat.md)。
+完整的版本 × 平台 × 能力矩阵（含未验证项与安装注意事项）见 [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md)。
 
 - 插件包住的是 DSH 的终端服务（`ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells|retain`、
   客户端 `ctx.webTerminals.launchShells`），这与社区插件的常用手法一致，但**不是文档化扩展点**；
   DSH 改动这些内部实现时需要同步适配（`package.json` 的 `engines.dsh` 声明了已验证范围
   `>=0.2.1-rc.2 <0.3.0-0`，DSH 0.3.0 未验证）。
 - 平台：macOS、Linux 支持；**Windows 尚未支持**，计划在下个版本支持（见
-  [docs/compat.md](docs/compat.md#平台)）。
+  [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)）。
 - 远端默认用 `bash -li` 启动以挂 `PROMPT_COMMAND` 钩子；远端没有 bash 时自动退回哨兵模式
   （窗口里会看到一行 `__dsh` 包装命令），功能不受影响、只是观感略差。
 - 终端输出没有做全终端模拟：行内覆盖用「保留最后一个 `\r` 之后内容」的简化处理，
@@ -388,10 +388,10 @@ npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引
 `tests/integration-sshd.test.mjs` 会起一个真实的临时 sshd 验证登录、socket 复用、1 MiB 双向
 传输、端口转发和退出码；机器上找不到 `ssh`/`sshd` 时整组跳过，所以 `npm test` 在两种机器上都能过。
 
-- 开发规则与分支模型：[CONTRIBUTING.md](CONTRIBUTING.md)（中文：[CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)）
-- AI 协作规则：[AGENTS.md](AGENTS.md)
-- 端到端验证（需要一台有 `ssh` 的机器）：[docs/verify-e2e.md](docs/verify-e2e.md)
-- 发版前真机清单：[docs/dev/release-checklist.md](docs/dev/release-checklist.md)
+- 开发规则与分支模型：[CONTRIBUTING.md](https://github.com/cccodder/dsh-remote-console/blob/main/CONTRIBUTING.md)（中文：[CONTRIBUTING.zh.md](https://github.com/cccodder/dsh-remote-console/blob/main/CONTRIBUTING.zh.md)）
+- AI 协作规则：[AGENTS.md](https://github.com/cccodder/dsh-remote-console/blob/main/AGENTS.md)
+- 端到端验证（需要一台有 `ssh` 的机器）：[docs/verify-e2e.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/verify-e2e.md)
+- 发版前真机清单：[docs/dev/release-checklist.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/dev/release-checklist.md)
 - 发版流程：release PR 里改版本 + CHANGELOG + `npm run market:index`，合并后在 `main` 发布
   `vX.Y.Z` Release；workflow 校验 tag、跑测试、带 provenance 发 npm 并把 `.tgz` 挂到 Release。
 
@@ -410,6 +410,6 @@ npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引
 
 ## 许可
 
-MIT。见 [LICENSE](LICENSE)。
+MIT。见 [LICENSE](https://github.com/cccodder/dsh-remote-console/blob/main/LICENSE)。
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
