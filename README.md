@@ -367,12 +367,29 @@ cat ~/.dsh/remote-console/selftest.log
   客户端 `ctx.webTerminals.launchShells`），这与社区插件的常用手法一致，但**不是文档化扩展点**；
   DSH 改动这些内部实现时需要同步适配（`package.json` 的 `engines.dsh` 声明了已验证范围
   `>=0.2.1-rc.2 <0.3.0-0`，DSH 0.3.0 未验证）。
-- 平台：macOS、Linux 支持；**Windows 尚未支持**，计划在下个版本支持（见
+- 平台：macOS、Linux 完整支持；**Windows 已支持（实验性）**——终端照常可用，工具在没有
+  ControlMaster 时自动退回 PTY 通道（详见下面的「Windows（实验性）」与
   [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)）。
 - 远端默认用 `bash -li` 启动以挂 `PROMPT_COMMAND` 钩子；远端没有 bash 时自动退回哨兵模式
   （窗口里会看到一行 `__dsh` 包装命令），功能不受影响、只是观感略差。
 - 终端输出没有做全终端模拟：行内覆盖用「保留最后一个 `\r` 之后内容」的简化处理，
   极端 TUI 场景下 `remote_screen` 可能与真实画面有出入，命令结果以 `remote_run`/`remote_exec` 为准。
+
+## Windows（实验性）
+
+Windows 走的是另一条连接路径：Windows 版 OpenSSH **不支持 ControlMaster**，拿不到可复用的
+socket，所以插件用 Node 版包装器（`bin/dsh-ssh.mjs`）起终端，agent 工具在没有 socket 时
+自动退回 PTY 通道。
+
+- 终端：和 macOS/Linux 一样可用（密码/口令仍由 `ssh` 自己提示，插件不接触）。
+- 工具：`remote_run`、`remote_exec`、`remote_read_file`、`remote_write_file`、
+  `remote_upload`、`remote_download` 都可用，但部分行为有差异——命令与数据会出现在用户
+  窗口里，`remote_exec` 的 stdout/stderr 合并；传输单文件上限 **1 MiB**（base64 分块走终端）。
+- 不可用：`remote_forward`（端口转发需要一条已认证的可复用连接）；`remote_audit_*` 不受影响。
+- 启动器是 `node dsh-ssh.mjs --host/--target ...`，需要 DSH 自带的那份 Node（插件用
+  `process.execPath`，不需要系统额外装 Node）。
+- 实验性：本机没有 Windows 环境，逻辑用 Linux 上的等价路径验证过（Node 包装器、PTY 分块
+  读写、通道选择、工具自动回退）；真实 Windows conpty 的窗口观感与长行限制还需要真机确认。
 
 ## 性能基线（loopback）
 

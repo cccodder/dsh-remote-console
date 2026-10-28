@@ -30,7 +30,7 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | --- | --- | --- |
 | macOS（Intel / Apple Silicon） | ✅ 支持 | 包装器保持 POSIX bash + BSD `date` 兼容（0.6.1 修过 `date -Is`）；真机检查项见 [verify-e2e.md](verify-e2e.md) 与 [release-checklist.md](dev/release-checklist.md)。CI 不跑 macOS |
 | Linux（x64 / arm64） | ✅ 支持 | CI 在 `ubuntu-latest` 跑测试；插件本身没有平台相关二进制 |
-| Windows | ❌ 未支持 | `bin/dsh-ssh` 是 bash 包装器且依赖系统 `ssh`；WSL / Git Bash 路径未验证。计划在下个版本支持（不承诺日期） |
+| Windows | ✅ 支持（实验性） | `bin/dsh-ssh.mjs`（Node 包装器）替代 bash 脚本；Windows OpenSSH 没有 ControlMaster，工具自动退回 PTY 通道（传输 ≤1 MiB），端口转发不可用。本机无 Windows 环境，逻辑用 Linux 等价路径验证（Node 包装器、PTY 分块读写、通道选择、工具自动回退），真实 conpty 观感待真机确认 |
 | 其他（BSD 等） | ❌ 未验证 | 理论上包装器可移植，但没有测试记录 |
 
 ## 能力矩阵
@@ -40,16 +40,16 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 
 | 能力 | 依赖的 DSH 内部点 / 机制 | macOS | Linux | Windows | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| 终端同屏（人与 agent 共用同一个 PTY） | `ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells/retain`、客户端 `ctx.webTerminals.launchShells` | ✅ | ✅ | ❌ | 核心能力；渲染/输入复用 DSH 自带终端 |
-| 13 个工具（终端 6 个 + 文件 4 个 + 转发 1 个 + 审计 2 个） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ❌ | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志） |
-| 文件传输（`remote_upload` / `remote_download`） | 已认证的 ControlMaster socket（`remote_exec` 通道） | ✅ | ✅ | ❌ | 必须先有活着的 SSH 终端；流式传输并双向校验 sha256；默认不覆盖；单文件上限 256 MB；`remote_upload` 写敏感远端路径（`~/.ssh`、`/etc`、sudoers、shell profile）前审批 |
-| 文件读写（`remote_read_file` / `remote_write_file`） | 已认证的 ControlMaster socket | ✅ | ✅ | ❌ | 读：默认 128 KB、上限 256 KB，二进制拒绝显示；写：≤256 KB UTF-8，走 stdin 不进终端窗口；敏感路径审批 |
-| 端口转发（`remote_forward` start/stop/list） | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>` | ✅ | ✅ | ❌ | 只绑回环地址，局域网其他机器连不上；终端结束或 `remote_close` 时自动停止；不重新认证 |
-| 危险命令 / 终端终止命令审批 | DSH `ctx.approval` | ✅ | ✅ | ❌ | 无审批服务（headless）时拒绝执行（fail closed）；`DSH_RC_DANGER_GUARD=off` 可显式关闭 |
-| 关窗即失能 | `ctx.terminalController.retain` 的窗口持有 | ✅ | ✅ | ❌ | 关标签立即杀进程树；关浏览器 8 秒宽限；DSH 崩溃时 ssh 随 HUP 退出 |
-| 跨会话审计日志（`remote_audit_read` / `remote_audit_export`） | 宿主侧文件 `audit/audit.jsonl`（不依赖终端） | ✅ | ✅ | ❌ | 只记 agent 动作，不含屏幕输出；8 MB 滚动保留 5 份；`DSH_RC_AUDIT=off` 可关 |
-| 设置页：主机列表（插件行配置） | DSH `ctx.configForms` + `settings.describe`；宿主 `Config` 的 `volatile()` 字段；客户端 `plugins.row.config` slot | ✅（未在真实浏览器逐项验证） | ✅（未在真实浏览器逐项验证） | ❌ | 部署里没有 configForms（精简组合/老 DSH）时不注册、不影响终端；写入的是 profile patch 里的行配置 |
-| 插件市场「有新版本」 | GitHub Release 查询（6 小时缓存）+ 市场索引 format 1 | ✅ | ✅ | ❌ | 离线/限流/CORS 失败静默；更新入口依赖市场索引 |
+| 终端同屏（人与 agent 共用同一个 PTY） | `ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells/retain`、客户端 `ctx.webTerminals.launchShells` | ✅ | ✅ | ✅（实验性） | 核心能力；渲染/输入复用 DSH 自带终端。Windows 用 Node 版包装器 `bin/dsh-ssh.mjs`，启动器是 `node dsh-ssh.mjs --host/--target` |
+| 13 个工具（终端 6 个 + 文件 4 个 + 转发 1 个 + 审计 2 个） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ✅（PTY 回退） | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志）。Windows 无 ControlMaster 时自动走 PTY：命令/数据在窗口可见、stdout/stderr 合并、传输 ≤1 MiB |
+| 文件传输（`remote_upload` / `remote_download`） | 已认证的 ControlMaster socket（`remote_exec` 通道）；无 socket 时 PTY + base64 分块 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 必须先有活着的 SSH 终端；流式传输并双向校验 sha256；默认不覆盖；单文件上限 256 MB（PTY 通道 1 MiB）；`remote_upload` 写敏感远端路径前审批 |
+| 文件读写（`remote_read_file` / `remote_write_file`） | 已认证的 ControlMaster socket；无 socket 时 PTY + base64 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 读：默认 128 KB、上限 256 KB，二进制拒绝显示；写：≤256 KB UTF-8；socket 通道走 stdin 不进窗口，PTY 通道会经过用户窗口；敏感路径审批 |
+| 端口转发（`remote_forward` start/stop/list） | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>`（需要 ControlMaster） | ✅ | ✅ | ❌ | 只绑回环地址，局域网其他机器连不上；终端结束或 `remote_close` 时自动停止；不重新认证。Windows 没有可复用连接，明确报 `FORWARD_UNAVAILABLE` |
+| 危险命令 / 终端终止命令审批 | DSH `ctx.approval` | ✅ | ✅ | ✅ | 无审批服务（headless）时拒绝执行（fail closed）；`DSH_RC_DANGER_GUARD=off` 可显式关闭 |
+| 关窗即失能 | `ctx.terminalController.retain` 的窗口持有 | ✅ | ✅ | ✅ | 关标签立即杀进程树；关浏览器 8 秒宽限；DSH 崩溃时 ssh 随 HUP 退出（Windows 上 conpty 子进程同样被终止） |
+| 跨会话审计日志（`remote_audit_read` / `remote_audit_export`） | 宿主侧文件 `audit/audit.jsonl`（不依赖终端） | ✅ | ✅ | ✅ | 只记 agent 动作，不含屏幕输出；8 MB 滚动保留 5 份；`DSH_RC_AUDIT=off` 可关 |
+| 设置页：主机列表（插件行配置） | DSH `ctx.configForms` + `settings.describe`；宿主 `Config` 的 `volatile()` 字段；客户端 `plugins.row.config` slot | ✅（未在真实浏览器逐项验证） | ✅（未在真实浏览器逐项验证） | ✅（浏览器界面，与宿主平台无关） | 部署里没有 configForms（精简组合/老 DSH）时不注册、不影响终端；写入的是 profile patch 里的行配置 |
+| 插件市场「有新版本」 | GitHub Release 查询（6 小时缓存）+ 市场索引 format 1 | ✅ | ✅ | ✅ | 离线/限流/CORS 失败静默；更新入口依赖市场索引 |
 
 ## peer 依赖
 

@@ -56,7 +56,10 @@ the remote host from an agent the user has already authorized to run commands th
   (`ctx.subprocess.spawnTerminal`, `ctx.terminalController.shells|retain`, client
   `ctx.webTerminals.launchShells`). A DSH update can change them; CI checks the pinned DSH
   version and a weekly job tries the DSH `next` tag.
-- Windows is not supported (bash wrapper + system `ssh`).
+- Windows support is experimental: the terminal runs through a Node wrapper (`bin/dsh-ssh.mjs`) and,
+  because Windows OpenSSH has no ControlMaster, the tools fall back to the PTY channel — transfers are
+  capped at 1 MiB and port forwarding is unavailable. There is no Windows machine in CI, so this path
+  is verified only through equivalent Linux paths.
 - `remote_screen` is not a full terminal emulator; trust `remote_run` / `remote_exec` for results.
 
 ---
@@ -107,5 +110,7 @@ the remote host from an agent the user has already authorized to run commands th
 
 - 插件包的是 DSH 的终端服务，**不是文档化扩展点**；DSH 更新可能改变它们。CI 验证固定的
   DSH 版本，另有一个每周任务试 DSH `next`。
-- 不支持 Windows（bash 包装器 + 系统 `ssh`）。
+- Windows 支持是实验性的：终端走 Node 包装器（`bin/dsh-ssh.mjs`）；Windows 版 OpenSSH 没有
+  ControlMaster，工具退回 PTY 通道——传输上限 1 MiB、端口转发不可用。CI 里没有 Windows 机器，
+  这条路径只用 Linux 上的等价路径验证过。
 - `remote_screen` 不是完整终端模拟器，结果以 `remote_run`/`remote_exec` 为准。
