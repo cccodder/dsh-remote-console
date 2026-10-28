@@ -21,7 +21,25 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 
-const RC_DIR = process.env.DSH_REMOTE_CONSOLE_DIR ?? join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'remote-console');
+const ARGV = process.argv.slice(2);
+
+/** 读一个带值的参数（--flag value 或 --flag=value）。 */
+function argValue(flag) {
+  for (let index = 0; index < ARGV.length; index += 1) {
+    const arg = ARGV[index];
+    if (arg === flag) return ARGV[index + 1] ?? '';
+    if (arg.startsWith(`${flag}=`)) return arg.slice(flag.length + 1);
+  }
+  return undefined;
+}
+
+// rc 目录：启动器会传 --rc-dir（包装器所在 <rc-dir>/bin/ 的上一级），比环境变量可靠——
+// 桌面版重建 PTY 环境时可能没有 DSH_HOME，算错目录就会让 socket/rendezvous 对不上宿主。
+const RC_OVERRIDE = argValue('--rc-dir');
+const RC_DIR =
+  RC_OVERRIDE !== undefined && RC_OVERRIDE !== ''
+    ? RC_OVERRIDE
+    : process.env.DSH_REMOTE_CONSOLE_DIR ?? join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'remote-console');
 const SESS_DIR = join(RC_DIR, 'sessions');
 const SOCK_DIR = join(RC_DIR, 'socks');
 const HOSTS_FILE = join(RC_DIR, 'hosts.tsv');
@@ -279,7 +297,11 @@ async function main(argv) {
       targetSpec = argv[index + 1] ?? '';
       index += 1;
     } else if (arg.startsWith('--target=')) targetSpec = arg.slice('--target='.length);
-    else if (arg === '--ask-target') askTarget = true;
+    else if (arg === '--rc-dir') {
+      index += 1;
+    } else if (arg.startsWith('--rc-dir=')) {
+      // 已在模块顶部解析过
+    } else if (arg === '--ask-target') askTarget = true;
     // -i / --interactive / --login：DSH 追加的参数，忽略
   }
 

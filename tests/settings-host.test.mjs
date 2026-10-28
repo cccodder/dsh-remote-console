@@ -42,6 +42,15 @@ describe('Config schema', () => {
     assert.equal(read(Config({}).hosts), '');
     assert.equal(read(Config({ hosts: 'nas\nops@1.2.3.4:22' }).hosts), 'nas\nops@1.2.3.4:22');
   });
+
+  it('maxTransferMB 默认 256，且不在 schema 层拒绝越界值（避免坏配置让插件加载失败）', () => {
+    assert.equal(Config({}).maxTransferMB, 256);
+    assert.equal(Config({ maxTransferMB: 8 }).maxTransferMB, 8);
+    // 越界值能不能落盘由设置页拦；真落到配置里也只应夹取，不应抛错
+    assert.doesNotThrow(() => Config({ maxTransferMB: 5000 }));
+    assert.doesNotThrow(() => Config({ maxTransferMB: 0 }));
+    assert.equal(__testing.resolveMaxTransferMB(Config({ maxTransferMB: 5000 }).maxTransferMB), 2048);
+  });
 });
 
 describe('configHostLines', () => {
@@ -77,6 +86,8 @@ describe('设置页主机 → 侧栏启动器', () => {
     const targetLauncher = result.find((entry) => entry.name === 'SSH ops@10.9.9.9:2220');
     const body = readFileSync(targetLauncher.path, 'utf8');
     assert.match(body, /--target "ops@10\.9\.9\.9:2220"/u);
+    // 启动器把 rc 目录自证给包装器：PTY 环境可能没有 DSH_HOME
+    assert.ok(body.includes(`--rc-dir "${paths.RC_DIR}"`), `启动器应带 --rc-dir：${body}`);
     const aliasLauncher = result.find((entry) => entry.name === 'SSH nas');
     assert.match(readFileSync(aliasLauncher.path, 'utf8'), /--host "nas"/u);
 

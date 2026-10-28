@@ -20,6 +20,11 @@ const {
   reserveFreePort,
   portAccepts,
   MAX_TEXT_WRITE_BYTES,
+  resolveMaxTransferMB,
+  maxTransferBytes,
+  DEFAULT_MAX_TRANSFER_MB,
+  MIN_MAX_TRANSFER_MB,
+  MAX_MAX_TRANSFER_MB,
 } = __testing;
 
 describe('normalizeRemotePath', () => {
@@ -118,4 +123,35 @@ describe('空闲端口', () => {
 
 it('文本写入上限是 256 KB', () => {
   assert.equal(MAX_TEXT_WRITE_BYTES, 256 * 1024);
+});
+
+describe('单文件传输上限（可配）', () => {
+  it('默认 256 MB', () => {
+    assert.equal(DEFAULT_MAX_TRANSFER_MB, 256);
+    assert.equal(resolveMaxTransferMB(undefined, undefined), 256);
+    assert.equal(MIN_MAX_TRANSFER_MB, 1);
+    assert.equal(MAX_MAX_TRANSFER_MB, 2048);
+  });
+
+  it('设置值优先于环境变量，并夹在 1–2048 MB', () => {
+    assert.equal(resolveMaxTransferMB(1024, 128), 1024);
+    assert.equal(resolveMaxTransferMB(8), 8);
+    assert.equal(resolveMaxTransferMB(5000), 2048);
+    assert.equal(resolveMaxTransferMB(0), 1);
+    assert.equal(resolveMaxTransferMB(-5), 1);
+    // 小数取整，避免 0.5 MB 这种无法表达成字节数的值
+    assert.equal(resolveMaxTransferMB(12.6), 13);
+  });
+
+  it('设置值非法时退回环境变量，两者都不合法才用默认值', () => {
+    assert.equal(resolveMaxTransferMB(undefined, '512'), 512);
+    assert.equal(resolveMaxTransferMB('abc', '512'), 512);
+    assert.equal(resolveMaxTransferMB(null, '64'), 64);
+    assert.equal(resolveMaxTransferMB('abc', 'xyz'), 256);
+    assert.equal(resolveMaxTransferMB(NaN, ''), 256);
+  });
+
+  it('换算成字节数', () => {
+    assert.equal(maxTransferBytes(), DEFAULT_MAX_TRANSFER_MB * 1024 * 1024);
+  });
 });

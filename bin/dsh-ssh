@@ -12,7 +12,22 @@
 
 set -u
 
-RC_DIR="${DSH_REMOTE_CONSOLE_DIR:-${DSH_HOME:-$HOME/.dsh}/remote-console}"
+# rc 目录：优先用启动器传进来的 --rc-dir（包装器自己就在 <rc-dir>/bin/ 下），
+# 其次环境变量，最后才退回 ~/.dsh。桌面版的终端环境是从桌面会话重建的，可能没有
+# DSH_HOME；只靠环境变量会让包装器算到另一个目录，socket/rendezvous 与宿主插件对不上。
+_rc_override=""
+_scan_i=1
+while [ "$_scan_i" -le "$#" ]; do
+  eval "_arg=\${$_scan_i}"
+  case "$_arg" in
+    --rc-dir)
+      if [ "$_scan_i" -lt "$#" ]; then eval "_next=\${$((_scan_i + 1))}"; _rc_override="${_next:-}"; fi
+      ;;
+    --rc-dir=*) _rc_override="${_arg#--rc-dir=}" ;;
+  esac
+  _scan_i=$((_scan_i + 1))
+done
+RC_DIR="${_rc_override:-${DSH_REMOTE_CONSOLE_DIR:-${DSH_HOME:-$HOME/.dsh}/remote-console}}"
 SSH_CONFIG="${DSH_SSH_CONFIG:-$HOME/.ssh/config}"
 DRYRUN="${DSH_RC_DRYRUN:-0}"
 
@@ -65,6 +80,8 @@ ASK_TARGET=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -i|--interactive|-l|--login) shift ;;
+    --rc-dir) shift 2 ;;
+    --rc-dir=*) shift ;;
     --host|-H) FORCED_HOST="${2:-}"; shift 2 ;;
     --host=*) FORCED_HOST="${1#--host=}"; shift ;;
     --target|-T) TARGET_SPEC="${2:-}"; shift 2 ;;

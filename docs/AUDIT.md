@@ -102,3 +102,17 @@ tools registered
    停止必须用 `ssh -O cancel -L <spec>`，kill 那个已经退出的客户端是无效的。
 7. **配置来源统一**：`DSH_SSH_CONFIG` 以前只影响终端包装器的主机列表，现在 exec/传输/
    转发与包装器都走同一个 `-F`，避免「终端连 A、工具连 B」。
+
+
+## 0.10.x 增补：会话归属（防越权）
+
+宿主进程里所有会话共用一个 console 表，所以「终端属于谁」必须显式校验：
+
+1. **归属来源**：`ctx.subprocess.spawnTerminal(spec)` 的 `spec.env.DSH_SESSION_ID` 记到
+   `cover.sessionId`；调用方会话取工具执行上下文的 `exec.agent.id`（Agent 身份即 SessionId）。
+2. **解析即校验**：传 `console_pid` 必须属于当前会话；不传时 `newestConsole(sessionId)` 只在本
+   会话的终端里挑；`remote_status` 也只列本会话的终端。不匹配报 `CONSOLE_FORBIDDEN`，
+   不回退到「随便挑一个」。
+3. **信息缺失时退回旧行为**：两边任一为空（老版本 DSH 不传 `DSH_SESSION_ID`、插件自测、
+   手动登记的 console）无法判定归属，此时保持原行为而不是拒绝——否则会把合法终端全部废掉。
+4. **审计可追溯**：记录里同时有 `pid` 和 `session`，跨会话排查时不用再靠 pid 猜。
