@@ -24,12 +24,20 @@ _ts() { date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf 'unknown'; }
 _wrapper_log() { mkdir -p "$RC_DIR" 2>/dev/null; printf '%s %s\n' "$(_ts)" "$*" >> "$RC_DIR/wrapper.log" 2>/dev/null; }
 _force_f=0
 _why="ok"
-for f in /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*; do
-  [ -e "$f" ] || continue
-  _owner=$(stat -c %U "$f" 2>/dev/null || echo unknown)
-  _me=$(id -un 2>/dev/null || echo nobody)
-  if [ "$_owner" != "root" ] && [ "$_owner" != "$_me" ]; then _force_f=1; _why="owner:$_owner:$f"; break; fi
-done
+# 显式指定了配置文件（DSH_SSH_CONFIG）就一直用它：主机侧 exec/传输通道也读同一个变量，
+# 两边必须解析到同一台机器、同一套密钥。
+if [ -n "${DSH_SSH_CONFIG:-}" ]; then
+  _force_f=1
+  _why="env-override"
+fi
+if [ "$_force_f" = "0" ]; then
+  for f in /etc/ssh/ssh_config /etc/ssh/ssh_config.d/*; do
+    [ -e "$f" ] || continue
+    _owner=$(stat -c %U "$f" 2>/dev/null || echo unknown)
+    _me=$(id -un 2>/dev/null || echo nobody)
+    if [ "$_owner" != "root" ] && [ "$_owner" != "$_me" ]; then _force_f=1; _why="owner:$_owner:$f"; break; fi
+  done
+fi
 if [ "$_force_f" = "0" ]; then
   if ! ssh -G localhost >/dev/null 2>&1; then _force_f=1; _why="ssh-G-failed"; fi
 fi
@@ -38,7 +46,7 @@ if [ "$_force_f" = "1" ]; then
   if [ -r "$SSH_CONFIG" ]; then SSH_CFG=(-F "$SSH_CONFIG"); else SSH_CFG=(-F /dev/null); fi
 fi
 if [ "$_force_f" = "1" ]; then
-  _wrapper_log "ssh config fallback: why=$_why cfg=${SSH_CFG[*]:-none}"
+  _wrapper_log "ssh config override: why=$_why cfg=${SSH_CFG[*]:-none}"
 fi
 
 SESS_DIR="$RC_DIR/sessions"

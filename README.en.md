@@ -31,7 +31,9 @@ appear in the window like human typing, and the exit code comes from the shell's
 
 ## Install
 
-Requires DSH `>= 0.2.1-rc.2 <0.3.0` and a system `ssh` client.
+Requires DSH `>= 0.2.1-rc.2 <0.3.0-0` and a system `ssh` client.
+The full version / platform / capability matrix (including unverified items, the Windows status and
+pnpm 11 installation notes) is in [docs/compat.md](docs/compat.md).
 
 **npm package**: `dsh-remote-console` (https://www.npmjs.com/package/dsh-remote-console).
 
@@ -81,9 +83,21 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_status` | Console, host, socket, state, last screen lines |
 | `remote_run(command)` | Write into the same PTY (visible in the window), return output + real exit code (the PTY merges stderr into it) |
 | `remote_exec(command, cwd?)` | Out-of-band execution over the ControlMaster socket: native stdout/stderr/exit code, no terminal noise |
+| `remote_upload(local_path, remote_path, overwrite?)` | Local → remote: streamed, sha256 verified on both sides, no overwrite by default, 256 MB per file |
+| `remote_download(remote_path, local_path, overwrite?)` | Remote → local: streamed, sha256 verified, no local overwrite by default, 256 MB |
+| `remote_read_file(path, max_bytes?)` | Read remote text (128 KB default, 256 KB max); binary files are refused and redirected to `remote_download` |
+| `remote_write_file(path, content, append?)` | Write ≤256 KB of UTF-8 text; content goes over stdin, never through the terminal window |
+| `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` for `ssh -N -L 127.0.0.1:...` tunnels, bound to loopback only |
 | `remote_screen(lines)` | Current screen as plain text (ANSI stripped) |
 | `remote_log(cursor)` | Incremental read of the unified JSONL log (human commands, agent commands, both outputs) |
-| `remote_close()` | Close the ssh master and clean up socket/rendezvous files |
+| `remote_close()` | Close the ssh master, clean up socket/rendezvous files, stop this console's tunnels |
+
+**Files and tunnels reuse the same authenticated connection**: `remote_upload` / `remote_download` /
+`remote_read_file` / `remote_write_file` / `remote_forward` go through the console's ControlMaster
+socket — no password prompt, no re-authentication — but they **require a live SSH terminal** and fail
+immediately once it ends (`BatchMode=yes`, fail closed). Writing sensitive paths such as `~/.ssh`,
+`/etc`, sudoers or a shell profile asks for approval once. The full capability matrix is in
+[docs/compat.md](docs/compat.md).
 
 **`exit` semantics**: host launchers and "new session" are one-shot — when the remote shell
 exits (`exit`/`logout` in a command, or ssh drops), the whole console ends, every `remote_*`
@@ -130,6 +144,8 @@ does not lose them.
 **About one-click updates**: the plugin manager only offers *Update* for official on-demand
 plugins. Third-party plugins get the same experience by shipping a plugin market index
 (`market/index.json` in this repository) or being published to npm for the manager to install.
+If the index does not update or the version does not change after clicking update, see item 6 of
+[Troubleshooting](#troubleshooting).
 
 ## Security
 
@@ -144,6 +160,12 @@ plugins. Third-party plugins get the same experience by shipping a plugin market
   one-shot approval card through DSH's `ctx.approval`. A grant covers that command only;
   with no approval service mounted the command fails closed. `exit`/`logout`/`pkill ssh` in
   `remote_run` (which end the whole console) ask for approval too.
+- **Transfers are verified, tunnels are loopback-only**: `remote_upload` / `remote_download`
+  stream the bytes and compute sha256 on both sides (reported as `verified: unavailable` if the
+  remote has neither `sha256sum` nor `shasum`); existing files are not overwritten unless you pass
+  `overwrite: true`. `remote_forward` listens on `127.0.0.1` only, so other machines on the LAN
+  cannot reach it, and the tunnel stops when the terminal ends or `remote_close` runs. Writing
+  sensitive paths (`~/.ssh`, `/etc`, sudoers, shell profiles) asks for approval first.
 - **Logs disappear**: the per-session JSONL is deleted when the PTY ends; logs left behind
   by a DSH crash are swept on the next plugin start. Known secret shapes (Bearer tokens,
   `sk-*`, `password=/token=/secret=`) are redacted, but plaintext secrets inside command
@@ -168,27 +190,227 @@ policy (supported versions, what the plugin promises, known limitations) is in [
 | `DSH_RC_NO_CLEAR` | `0` | `1` disables the automatic screen clear |
 | `DSH_RC_SELFTEST` | `0` | Run the built-in self test once at startup |
 
+## Troubleshooting
+
+Find the logs first (last item), then match your symptom. Version / platform differences
+(DSH 0.3.0, Windows, pnpm 11) are covered in [docs/compat.md](docs/compat.md); the design behind
+authentication, approval and log retention is in the [security model](#security).
+
+### 1. `ssh: command not found`
+
+**Symptom**: the terminal's first line is `bash: ssh: command not found`; picking a host ends the
+terminal immediately with "── ssh 已退出（退出码 127）──".
+
+**Cause**: the plugin does not bundle `ssh`; it uses the system OpenSSH client, which is not on
+your `PATH`.
+
+**Fix**:
+
+```bash
+command -v ssh && ssh -V
+# Debian/Ubuntu
+sudo apt-get install -y openssh-client
+# Fedora/RHEL
+sudo dnf install -y openssh-clients
+# macOS ships /usr/bin/ssh, so it normally needs no install
+```
+
+Windows is not supported; see [docs/compat.md](docs/compat.md#platforms).
+
+### 2. `Bad owner or permissions on ...`
+
+**Symptom**: the panel opens, but `ssh` inside the terminal exits at once with
+`Bad owner or permissions on /etc/ssh/ssh_config` (or `~/.ssh/config`).
+
+**Cause**: `ssh` refuses config files with the wrong owner or permissions: system config must be
+owned by root and not writable by group/others; the user config must be owned by you and writable
+only by you (`~/.ssh` must not be writable by others either).
+
+**Fix**:
+
+```bash
+ssh -G localhost >/dev/null        # reproduce first: no error means this is not your problem
+ls -l ~/.ssh/config ~/.ssh
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/config
+chown "$(id -un)" ~/.ssh/config
+# when an image/container broke the system config
+sudo chown root:root /etc/ssh/ssh_config
+sudo chmod 644 /etc/ssh/ssh_config
+```
+
+Built-in fallback: when `ssh -G localhost` reports Bad owner, the plugin automatically switches to
+`-F ~/.ssh/config` (or `-F /dev/null`) and writes an `ssh config fallback` line to `wrapper.log`.
+You can also set `DSH_SSH_CONFIG=~/.ssh/config` explicitly and restart DSH.
+
+### 3. Password / host-key authentication stalls, agent writes rejected
+
+**Symptom**: the terminal sits on `password:`, `(yes/no)?` or `Enter passphrase`; agent tools return
+`AUTH_REQUIRED`; `remote_exec` and file transfers return `SSH_CLIENT_FAILED`.
+
+**Cause**: authentication must be completed by you in the terminal. The plugin never touches the
+password and rejects agent writes during authentication; `remote_exec` and file transfers use
+`BatchMode=yes` and will not prompt for a password.
+
+**Fix**: type the password / `yes` / passphrase in the terminal window, then retry the tool. If it is
+stuck, `Ctrl+C` back to the menu or shell and retry. To avoid typing it every time, use
+`ssh-agent` + `ssh-add` (the plugin does not read your key; it reuses the login in the terminal).
+Check what ssh is waiting for: the terminal's last line, or `remote_status`'s screen output.
+
+### 4. Control socket unavailable
+
+**Symptom**: `remote_status` still shows the host, but `remote_exec`, file transfers and
+`remote_forward` return `SSH_CLIENT_FAILED` / `NO_LIVE_CONSOLE`, or ssh says
+`Control socket ... has terminated`; `~/.dsh/remote-console/socks/` has no socket or a dead one.
+
+**Cause**: the ControlMaster is kept alive by `ssh -M -S` inside the terminal; it dies when ssh
+exits, the network drops or the tab closes. The plugin does not rebuild the master and will not
+re-authenticate with a stored password; a DSH restart clears stale sockets.
+
+**Fix**:
+
+```bash
+ls -l ~/.dsh/remote-console/socks/      # current sockets
+ps aux | grep "[s]sh -M -S"             # is the master still alive?
+# close a stale master (<sock> from above, <host> the matching host)
+ssh -S ~/.dsh/remote-console/socks/<sock> -O exit <host>
+```
+
+Then close the old tab and reopen the SSH terminal from the right sidebar and log in again. If the
+socket path is too long (Unix sockets cap at roughly 108 bytes) and the bind fails, move the data
+directory to a short path and restart DSH: `DSH_REMOTE_CONSOLE_DIR=/tmp/rc` (copy the old
+`hosts.tsv` over to keep manually added hosts).
+
+### 5. `CONSOLE_CLOSED` / `NO_LIVE_CONSOLE` after the terminal ended
+
+**Symptom**: `remote_run` fails with `CONSOLE_CLOSED: 终端已结束...` or `NO_LIVE_CONSOLE`; the
+terminal shows "── ssh 已退出（退出码 N）── / 这个终端已经结束".
+
+**Cause**: launchers in the panel are one-shot. When the remote shell exits (`exit` / `logout`), ssh
+drops, the network fails or you close the tab, the console ends and every `remote_*` tool stops
+working; the plugin does not silently reconnect.
+
+**Fix**: reopen the SSH terminal from the right sidebar and log in again. Use `remote_exec` for pure
+data collection (it runs `sh -c` in a subprocess and does not end the terminal); `exit` / `logout` /
+`pkill ssh` in `remote_run` require approval, which is the warning. Check for leftovers:
+`ps aux | grep "[s]sh -M"`.
+
+### 6. Plugin market index does not update
+
+**Symptom**: Discover shows no new version / no "Update available" / clicking update leaves the
+version unchanged; the index URL still returns old content.
+
+**Cause**: the first GitHub Pages build takes about a minute; jsDelivr caches the branch for up to
+~12 hours; the client's "update available" hint is cached for 6 hours; DSH only provides a native
+*Update* entry for official on-demand plugins, so third-party plugins rely on the market index or a
+reinstall, and hot reload occasionally does not replace the old package.
+
+**Fix**:
+
+```bash
+# 1. check whether the index lists the new version (replace 0.7.0 with the version you expect)
+curl -fsSL https://cccodder.github.io/dsh-remote-console/market/index.json \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.plugins?.[0]?.versions?.slice(0,5).map(v=>v.version).join(" "))})'
+# 2. try a mirror (different cache policy)
+curl -fsSL https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json >/dev/null \
+  && echo jsdelivr-ok
+```
+
+If the index does list the new version but the UI does not move, reinstall: **Plugins** → installed →
+**Uninstall** → Add plugin → `dsh-remote-console` → install → enable → fully restart DSH. Hosts and
+`hosts.tsv` live in `~/.dsh/remote-console/` and survive reinstall.
+
+### 7. Where are the logs? / enable the self test
+
+**Symptom**: you want to file an issue or debug, and the session logs seem to "disappear".
+
+**Cause**: diagnostics live in the data directory (default `${DSH_HOME:-~/.dsh}/remote-console/`);
+the per-session JSONL is not kept after the PTY ends, so capture it while the problem is happening.
+
+**Fix**:
+
+```bash
+ls -la ~/.dsh/remote-console/
+tail -n 100 ~/.dsh/remote-console/plugin.log    # startup, framing, approvals, tool registration
+cat ~/.dsh/remote-console/wrapper.log           # wrapper (e.g. ssh config fallback); no output = not triggered
+ls -la ~/.dsh/remote-console/logs/              # session JSONL: exists only while a session runs
+```
+
+Save `plugin.log` and `logs/` before reproducing. The built-in self test runs one PTY round trip
+(result in `selftest.log`, about 2 seconds after startup):
+
+```bash
+# CLI / side instance
+DSH_RC_SELFTEST=1 dsh verify --no-open --port 3999
+# desktop app: put the variable in the app's launch environment and fully restart (macOS example)
+launchctl setenv DSH_RC_SELFTEST 1
+# undo afterwards: launchctl unsetenv DSH_RC_SELFTEST
+cat ~/.dsh/remote-console/selftest.log
+```
+
+Attach `plugin.log`, `selftest.log` and the relevant `logs/` excerpt to an issue, with host names,
+user names and tokens removed.
+
 ## Compatibility
+
+The full version × platform × capability matrix (including unverified items and installation
+notes) is in [docs/compat.md](docs/compat.md).
 
 - The plugin wraps DSH's terminal services (`ctx.subprocess.spawnTerminal`,
   `ctx.terminalController.shells|retain`, client `ctx.webTerminals.launchShells`). This is
   the common community-plugin approach but **not a documented extension point**; DSH
-  changes to those internals need a matching update (`engines.dsh` declares the tested range).
+  changes to those internals need a matching update (`engines.dsh` declares the tested range
+  `>=0.2.1-rc.2 <0.3.0-0`; DSH 0.3.0 is not verified).
+- Platforms: macOS and Linux are supported; **Windows is not supported yet** and is planned for
+  the next release (see [docs/compat.md](docs/compat.md#platforms)).
 - Remote shells start as `bash -li` to install the `PROMPT_COMMAND` hook. Without bash the
   plugin falls back to sentinel framing — same capability, slightly noisier screen.
 - No full terminal emulation: in-line overwrite is simplified, so `remote_screen` can
   differ from the real screen in extreme TUI cases; trust `remote_run`/`remote_exec` for results.
 
+## Benchmark (loopback)
+
+`scripts/bench.mjs` measures the SSH channel alone (no DSH, no plugin): it starts a temporary sshd
+on 127.0.0.1 and measures master establishment, exec round trips over the ControlMaster socket, and
+1 MiB upload/download. Measured on this machine (2026-10-28, Linux x64, 6 vCPU, OpenSSH 9.2p1,
+`node scripts/bench.mjs --runs 60`):
+
+| Metric | Measured |
+| --- | --- |
+| Master establishment (connect + public-key auth + socket ready) | ~185–197 ms (median of 5; up to ~216 ms under load) |
+| Exec round trip over the master (p50 / p95) | ~12 ms / 13 ms (60 samples; p95 ~19 ms under load) |
+| 1 MiB upload | ~35–49 MiB/s (21–29 ms) |
+| 1 MiB download | ~21–25 MiB/s (43–47 ms) |
+
+Repeated runs on the same machine vary by roughly ±30% (other jobs run alongside in this container),
+so the table gives ranges rather than single points. This is a **loopback baseline**: same machine,
+no real network RTT, so do not extrapolate it to real hosts. What users feel is mainly two numbers:
+opening a console is one SSH login (about 0.2 s of handshake, excluding typing a password); after
+that, `remote_exec`, file transfers and tunnels reuse the same master, so each command costs
+roughly one local process spawn plus one network RTT. Real networks depend on RTT, bandwidth,
+cipher and remote load.
+
+Reproduce (needs a local `ssh` and `sshd`; the script prints per-platform preparation commands when
+either is missing; `scripts/` is not published to npm, run it from the repository root):
+
+```bash
+node scripts/bench.mjs                 # human-readable table
+node scripts/bench.mjs --runs 60 --json
+```
+
 ## Development
 
 ```bash
-npm test        # 69 tests + release metadata checks
+npm test        # unit tests + release metadata checks (real-sshd integration tests when ssh/sshd exist)
 npm run verify  # version / client VERSION / changelog / market index consistency only
 ```
 
-Tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` links the peer packages from
+Unit tests need neither `ssh` nor a real PTY: `tests/link-peers.mjs` links the peer packages from
 your global DSH install (CI installs them with `npm install --no-save`), and
 `tests/console.test.mjs` replays OSC frames from a fake remote shell.
+`tests/integration-sshd.test.mjs` starts a real temporary sshd and verifies login, socket reuse,
+1 MiB transfers in both directions, port forwarding and exit-code passthrough; the whole group is
+skipped when no `ssh`/`sshd` is available, so `npm test` passes on both kinds of machine.
 
 - Development rules and branch model: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Agent rules: [AGENTS.md](AGENTS.md)
@@ -197,6 +419,19 @@ your global DSH install (CI installs them with `npm install --no-save`), and
 - Release process: bump version + CHANGELOG + `npm run market:index` in a release PR, merge,
   then publish the `vX.Y.Z` GitHub release; the workflow validates the tag, runs the tests,
   publishes to npm with provenance and attaches the `.tgz` to the release.
+
+## Data directory
+
+`${DSH_HOME:-~/.dsh}/remote-console/`
+
+- `bin/`: host launchers generated from `~/.ssh/config` (`dsh-ssh-<host>`)
+- `hosts.tsv`: manually added hosts (host/user/port)
+- `sessions/`: `terminal ↔ socket` rendezvous (removed when the process exits)
+- `socks/`: ControlMaster sockets
+- `logs/`: session JSONL (deleted when the session ends)
+- `plugin.log`: plugin diagnostics (no credentials)
+- `wrapper.log`: wrapper diagnostics (e.g. ssh config fallback; written only when triggered)
+- `selftest.log`: built-in self-test result when `DSH_RC_SELFTEST=1`
 
 ## License
 

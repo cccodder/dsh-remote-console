@@ -29,7 +29,9 @@ DeepSeek Harness（DSH）右侧栏的 SSH 远程终端：你和 AI agent 在**�
 
 ## 安装
 
-要求：DSH `>= 0.2.1-rc.2 <0.3.0`，本机有系统 `ssh` 客户端。
+要求：DSH `>= 0.2.1-rc.2 <0.3.0-0`，本机有系统 `ssh` 客户端。
+版本、平台与能力的完整矩阵（含未验证项、Windows 说明、pnpm 11 安装注意事项）见
+[docs/compat.md](docs/compat.md)。
 
 **npm 包名**：`dsh-remote-console`（https://www.npmjs.com/package/dsh-remote-console）。
 
@@ -70,7 +72,8 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 它会自动写入 profile 的 `dependencies` 与 `dsh.profile.bundles`。注意全局 `dsh` CLI
 版本可能低于 App 自带的 DSH，以 App 内的版本为准。
 
-不需要 Python、不需要改 `~/.ssh/config`、不改 shell rc。
+不需要 Python、不需要改 `~/.ssh/config`、不改 shell rc。安装或使用中报错，先看下面的
+[故障排查](#故障排查)。
 
 ## 用法
 
@@ -83,12 +86,24 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | `remote_status` | 终端、主机、socket、状态、最后几行屏幕 |
 | `remote_run(command)` | 写进同一个 PTY（窗口里可见），返回输出 + 真实退出码（PTY 会把 stderr 并进输出） |
 | `remote_exec(command, cwd?)` | 复用 ControlMaster socket 的带外执行：原生 stdout/stderr/退出码，不污染终端窗口 |
+| `remote_upload(local_path, remote_path, overwrite?)` | 本地 → 远端：流式传输并双向校验 sha256，默认不覆盖，单文件上限 256 MB |
+| `remote_download(remote_path, local_path, overwrite?)` | 远端 → 本地：流式传输并校验 sha256，默认不覆盖本地文件，上限 256 MB |
+| `remote_read_file(path, max_bytes?)` | 读远端文本（默认 128 KB、上限 256 KB）；二进制文件拒绝显示，提示改用 `remote_download` |
+| `remote_write_file(path, content, append?)` | 写 ≤256 KB 的 UTF-8 文本；内容走 stdin，不进终端窗口 |
+| `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` 管理端口转发：`ssh -N -L 127.0.0.1:...`，只绑回环 |
 | `remote_screen(lines)` | 当前屏幕纯文本（剥 ANSI） |
 | `remote_log(cursor)` | 统一 JSONL 日志的增量读：人敲的命令、agent 的命令、两边输出 |
-| `remote_close()` | 断开 ssh master 并清理 socket/rendezvous 文件 |
+| `remote_close()` | 断开 ssh master 并清理 socket/rendezvous 文件、停止该终端的转发 |
 
 `remote_run` 适合：要你看着执行、需要 TTY（sudo/vim/嵌套 ssh）、需要在两次调用间保留 shell 状态。
 `remote_exec` 适合：纯数据收集、脚本、必须用退出码判断成败的事。
+
+**文件与转发都复用同一个已认证连接**：`remote_upload` / `remote_download` /
+`remote_read_file` / `remote_write_file` / `remote_forward` 走终端的 ControlMaster socket，
+不弹密码、不重新认证，但**必须先有一个活着的 SSH 终端**；终端一结束它们立即失败
+（`BatchMode=yes`，fail closed）。`remote_upload` / `remote_write_file` 写 `~/.ssh`、`/etc`、
+sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/平台的完整矩阵见
+[docs/compat.md](docs/compat.md)。
 
 **注意 `exit` 的语义**：面板里的主机启动器和「新建会话」都是一次性的——远端 shell 退出
 （命令里带 `exit`、`logout`，或 ssh 断开）后，整个终端就结束了，所有 `remote_*` 工具失效，
@@ -128,6 +143,7 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 
 **关于一键更新**：DSH 插件管理器只给官方按需插件提供「更新」按钮；第三方插件想要同样的
 体验，就得通过插件市场索引（本仓库的 `market/index.json`）或发布到 npm 让方负责分发。
+索引不更新、点了更新版本没变的排查步骤见[故障排查](#故障排查)第 6 条。
 
 ## 安全模型
 
@@ -140,6 +156,11 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
   `git push --force`、`DROP TABLE` 等模式时，通过 DSH 的 `ctx.approval` 弹一次审批卡片，
   **一次授权只对本次命令有效**；没有审批服务（headless/未挂载 answerer）时直接拒绝执行。
   `remote_run` 里会结束整个终端的 `exit` / `logout` / `pkill ssh` 同样需要审批。
+- **传输有校验、转发只绑回环**：`remote_upload` / `remote_download` 流式传输并在两端各算一次
+  sha256（远端没有 `sha256sum` / `shasum` 时结果会标成 `verified: unavailable`）；默认拒绝覆盖
+  已有文件，要显式 `overwrite: true`。`remote_forward` 只监听 `127.0.0.1`，局域网其他机器连不上，
+  终端结束或 `remote_close` 时自动停。写 `~/.ssh`、`/etc`、sudoers、shell profile 这类敏感路径
+  前会先要你审批一次。
 - **日志会消失**：PTY 结束即删除会话日志（保留内存事件供当场回看）；DSH 崩溃留下的
   残留日志会在下次插件启动时清扫。日志写入前会对 Bearer token、`sk-*`、
   `password=/token:/secret=` 一类赋值做脱敏，但**命令参数里的明文密钥仍可能出现在会话期间**，
@@ -163,26 +184,209 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 | `DSH_RC_NO_CLEAR` | `0` | 设为 `1` 不自动清屏（排查时用） |
 | `DSH_RC_SELFTEST` | `0` | 启动后跑一次内建自测并写 `selftest.log` |
 
+## 故障排查
+
+先按「找不到日志」一节确认日志位置，再对号入座。版本/平台层面的差异（DSH 0.3.0、Windows、
+pnpm 11）见 [docs/compat.md](docs/compat.md)；认证、审批、日志留存的设计见[安全模型](#安全模型)。
+
+### 1. 终端报 `ssh: command not found`
+
+**症状**：终端第一行就是 `bash: ssh: command not found`；点选主机后终端立刻结束，显示
+「── ssh 已退出（退出码 127）──」。
+
+**原因**：插件不捆绑 `ssh`，用的是系统 OpenSSH 客户端，本机 `PATH` 里没有。
+
+**处理**：
+
+```bash
+command -v ssh && ssh -V
+# Debian/Ubuntu
+sudo apt-get install -y openssh-client
+# Fedora/RHEL
+sudo dnf install -y openssh-clients
+# macOS 系统自带 /usr/bin/ssh，一般不需要安装
+```
+
+Windows 目前不支持，见 [docs/compat.md](docs/compat.md#平台)。
+
+### 2. `Bad owner or permissions on ...`
+
+**症状**：面板能打开，但终端里的 `ssh` 立刻退出，提示
+`Bad owner or permissions on /etc/ssh/ssh_config`（或 `~/.ssh/config`）。
+
+**原因**：`ssh` 拒绝属主/权限不对的配置文件：系统配置必须 root 拥有、组和其他用户不可写；
+用户配置必须本人拥有、只有本人可写（`~/.ssh` 目录也不能被其他人写）。
+
+**处理**：
+
+```bash
+ssh -G localhost >/dev/null        # 先复现：能过就没有这个问题
+ls -l ~/.ssh/config ~/.ssh
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/config
+chown "$(id -un)" ~/.ssh/config
+# 系统配置被镜像/容器改坏时
+sudo chown root:root /etc/ssh/ssh_config
+sudo chmod 644 /etc/ssh/ssh_config
+```
+
+插件的兜底：`ssh -G localhost` 报 Bad owner 时，会自动换成 `-F ~/.ssh/config`（或 `-F /dev/null`），
+并在 `wrapper.log` 里记一行 `ssh config fallback`。也可以显式指定配置文件后重启 DSH：
+`DSH_SSH_CONFIG=~/.ssh/config`。
+
+### 3. 密码 / 主机指纹认证卡住，agent 写入被拒
+
+**症状**：终端停在 `password:`、`(yes/no)?` 或 `Enter passphrase`；agent 的工具返回
+`AUTH_REQUIRED`；`remote_exec` / 文件传输报 `SSH_CLIENT_FAILED`。
+
+**原因**：认证必须由你本人在终端里完成。插件不接触密码，认证期会拒绝 agent 的写入；
+`remote_exec` 和文件传输走 `BatchMode=yes`，不会替你弹密码。
+
+**处理**：在终端窗口里输入密码 / `yes` / 口令，然后重新调用工具。卡住时 `Ctrl+C` 回到菜单或 shell
+再试。不想每次输口令就用 `ssh-agent` + `ssh-add`（插件不读你的私钥，只复用终端里那次登录）。
+确认 ssh 在等什么：看终端最后一行，或调 `remote_status` 看屏幕内容。
+
+### 4. Control socket 不可用
+
+**症状**：`remote_status` 还能看到 host，但 `remote_exec`、文件传输、`remote_forward` 报
+`SSH_CLIENT_FAILED` / `NO_LIVE_CONSOLE`，或 ssh 输出 `Control socket ... has terminated`；
+`~/.dsh/remote-console/socks/` 里没有 socket，或 socket 已经是死文件。
+
+**原因**：ControlMaster 由终端里的 `ssh -M -S` 维持，ssh 退出、网络中断、关标签后 socket 就失效。
+插件不会重建 master，也不会拿密码去重连；DSH 重启会清掉旧 socket。
+
+**处理**：
+
+```bash
+ls -l ~/.dsh/remote-console/socks/      # 当前 socket
+ps aux | grep "[s]sh -M -S"             # master 是否还活着
+# 收掉残留的 master（<sock> 换成上面看到的路径，<host> 换成对应主机）
+ssh -S ~/.dsh/remote-console/socks/<sock> -O exit <host>
+```
+
+然后在右侧栏关掉旧标签、重新打开 SSH 终端并登录。如果 socket 路径过长（Unix socket 路径上限
+约 108 字节）导致 bind 失败，把数据目录挪到短路径后重启 DSH：
+`DSH_REMOTE_CONSOLE_DIR=/tmp/rc`（把原目录的 `hosts.tsv` 复制过去可保留手动添加的主机）。
+
+### 5. 终端结束后工具报 `CONSOLE_CLOSED` / `NO_LIVE_CONSOLE`
+
+**症状**：agent 的 `remote_run` 报 `CONSOLE_CLOSED: 终端已结束...` 或 `NO_LIVE_CONSOLE`；
+终端里显示「── ssh 已退出（退出码 N）── / 这个终端已经结束」。
+
+**原因**：面板里的启动器是一次性的。远端 shell 退出（`exit` / `logout`）、ssh 断开、网络中断、
+你关掉标签，都会结束 console，所有 `remote_*` 工具随之失效；插件不会偷偷重连。
+
+**处理**：在右侧栏重新打开 SSH 终端并重新登录。纯数据收集用 `remote_exec`（`sh -c` 子进程，
+不会结束终端）；`remote_run` 里的 `exit` / `logout` / `pkill ssh` 会先弹审批，就是提醒这一点。
+检查本地是否还有残留：`ps aux | grep "[s]sh -M"`。
+
+### 6. 插件市场索引不更新
+
+**症状**：发现页里没有新版本 / 没有「有新版本」/ 点了更新版本号没变；打开索引 URL 看到的是旧内容。
+
+**原因**：GitHub Pages 首次构建约需 1 分钟；jsDelivr 的分支缓存最长约 12 小时；客户端「有新版本」
+提示缓存 6 小时；DSH 只对官方按需插件原生提供「更新」，第三方插件靠市场索引或卸载重装，
+热更新偶尔不彻底。
+
+**处理**：
+
+```bash
+# 1. 确认索引里有没有新版本（把 0.7.0 换成你等的版本）
+curl -fsSL https://cccodder.github.io/dsh-remote-console/market/index.json \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.plugins?.[0]?.versions?.slice(0,5).map(v=>v.version).join(" "))})'
+# 2. 换镜像源再试（缓存策略不同）
+curl -fsSL https://cdn.jsdelivr.net/gh/cccodder/dsh-remote-console@main/market/index.json >/dev/null \
+  && echo jsdelivr-ok
+```
+
+索引里已有新版本但界面不动，就走重装：侧栏「插件」→ 已安装 → **卸载** → 添加插件 →
+`dsh-remote-console` → 安装 → 启用 → 完整重启 DSH。主机列表和 `hosts.tsv` 在
+`~/.dsh/remote-console/`，卸载重装不会丢。
+
+### 7. 找不到日志 / 开内建自测
+
+**症状**：要贴 issue 或自己排查，不知道看哪里；会话结束后日志「消失」了。
+
+**原因**：诊断日志在数据目录（默认 `${DSH_HOME:-~/.dsh}/remote-console/`），会话 JSONL 默认不保留
+（PTY 结束即删），所以要在问题发生的当下抓。
+
+**处理**：
+
+```bash
+ls -la ~/.dsh/remote-console/
+tail -n 100 ~/.dsh/remote-console/plugin.log    # 启动、framing、审批、工具注册
+cat ~/.dsh/remote-console/wrapper.log           # 包装器（如 ssh 配置回退）；没有输出=没触发
+ls -la ~/.dsh/remote-console/logs/              # 会话 JSONL：只在会话进行时存在
+```
+
+复现前先把 `plugin.log` 和 `logs/` 留存。开内建自测跑一次 PTY 链路（结果写
+`selftest.log`，启动约 2 秒后执行）：
+
+```bash
+# CLI / 旁路实例
+DSH_RC_SELFTEST=1 dsh verify --no-open --port 3999
+# 桌面 App：把变量放进 App 的启动环境后完整重启（macOS 示例）
+launchctl setenv DSH_RC_SELFTEST 1
+# 验证完记得取消：launchctl unsetenv DSH_RC_SELFTEST
+cat ~/.dsh/remote-console/selftest.log
+```
+
+贴 issue 时附上 `plugin.log`、`selftest.log` 和相关 `logs/` 片段，并去掉主机名、用户名和 token。
+
 ## 兼容性与限制
+
+完整的版本 × 平台 × 能力矩阵（含未验证项与安装注意事项）见 [docs/compat.md](docs/compat.md)。
 
 - 插件包住的是 DSH 的终端服务（`ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells|retain`、
   客户端 `ctx.webTerminals.launchShells`），这与社区插件的常用手法一致，但**不是文档化扩展点**；
-  DSH 改动这些内部实现时需要同步适配（`package.json` 的 `engines.dsh` 声明了已验证范围）。
+  DSH 改动这些内部实现时需要同步适配（`package.json` 的 `engines.dsh` 声明了已验证范围
+  `>=0.2.1-rc.2 <0.3.0-0`，DSH 0.3.0 未验证）。
+- 平台：macOS、Linux 支持；**Windows 尚未支持**，计划在下个版本支持（见
+  [docs/compat.md](docs/compat.md#平台)）。
 - 远端默认用 `bash -li` 启动以挂 `PROMPT_COMMAND` 钩子；远端没有 bash 时自动退回哨兵模式
   （窗口里会看到一行 `__dsh` 包装命令），功能不受影响、只是观感略差。
 - 终端输出没有做全终端模拟：行内覆盖用「保留最后一个 `\r` 之后内容」的简化处理，
   极端 TUI 场景下 `remote_screen` 可能与真实画面有出入，命令结果以 `remote_run`/`remote_exec` 为准。
 
+## 性能基线（loopback）
+
+`scripts/bench.mjs` 只量 SSH 通道本身的开销（不经过 DSH、不经过插件）：起一个 127.0.0.1 上的
+临时 sshd，用 ControlMaster socket 量「建立 master」「复用 master 的 exec 往返」「1 MiB 上传/下载」。
+本机实测（2026-10-28，Linux x64 6 vCPU，OpenSSH 9.2p1，`node scripts/bench.mjs --runs 60`）：
+
+| 指标 | 实测值 |
+| --- | --- |
+| 建立 master（连接 + 公钥认证 + socket 就绪） | 约 185–197 ms（5 次中位数；有负载时最高约 216 ms） |
+| exec 往返，复用 master（p50 / p95） | 约 12 ms / 13 ms（60 次采样；有负载时 p95 约 19 ms） |
+| 1 MiB 上传 | 约 35–49 MiB/s（21–29 ms） |
+| 1 MiB 下载 | 约 21–25 MiB/s（43–47 ms） |
+
+同一台机器多次运行也会有约 ±30% 的抖动（容器里同时跑着别的任务），所以给区间而不是单点。
+这是 **loopback 基线**：同一台机器、没有真实网络 RTT，不能直接外推到真实主机。用户能感知的主要是
+两条：新建终端 ≈ 一次 SSH 登录（约 0.2 秒的握手，不含你输密码的时间）；之后 `remote_exec`、
+文件传输、端口转发都复用同一个 master，每条命令 ≈ 一次本地进程创建 + 一个网络 RTT。真实网络的
+耗时由 RTT、带宽、加密套件和远端负载决定。
+
+复现（需要本机有 `ssh` 和 `sshd`；找不到时脚本会打印各平台准备命令；`scripts/` 不随 npm 包发布，
+请在仓库根目录跑）：
+
+```bash
+node scripts/bench.mjs                 # 人类可读表格
+node scripts/bench.mjs --runs 60 --json
+```
+
 ## 开发与测试
 
 ```bash
-npm test      # 69 个测试 + 发版元数据检查
+npm test      # 单元测试 + 发版元数据检查（有 ssh/sshd 时还跑真实 sshd 集成测试）
 npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引是否一致
 ```
 
-测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包
+单元测试不需要 `ssh`，也不需要真 PTY：`tests/link-peers.mjs` 会把全局安装的 DSH 里的 peer 包
 软链进本目录（CI 里改用 `npm install --no-save` 装同样的包），
 `tests/console.test.mjs` 用一个假远端 shell 回放 OSC 帧来验证退出码、回显剥离和超时。
+`tests/integration-sshd.test.mjs` 会起一个真实的临时 sshd 验证登录、socket 复用、1 MiB 双向
+传输、端口转发和退出码；机器上找不到 `ssh`/`sshd` 时整组跳过，所以 `npm test` 在两种机器上都能过。
 
 - 开发规则与分支模型：[CONTRIBUTING.md](CONTRIBUTING.md)（中文：[CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)）
 - AI 协作规则：[AGENTS.md](AGENTS.md)
@@ -201,6 +405,8 @@ npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引
 - `socks/`：ControlMaster socket
 - `logs/`：会话 JSONL（会话结束即删）
 - `plugin.log`：插件诊断日志（不含凭据）
+- `wrapper.log`：包装器诊断日志（如 ssh 配置回退；只在触发时写入）
+- `selftest.log`：`DSH_RC_SELFTEST=1` 时的内建自测结果
 
 ## 许可
 
