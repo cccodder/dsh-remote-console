@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-28
+
 ### Added
 
 - **单文件传输上限可配**：`remote_upload` / `remote_download` 的上限从写死的 256 MB 变成配置项。
@@ -356,6 +358,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
 [Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...HEAD
+[0.10.3]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...v0.10.0
