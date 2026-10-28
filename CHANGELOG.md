@@ -8,6 +8,15 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Security
+
+- **工具按会话隔离终端（修越权）**：之前同一宿主进程里的任何会话都能通过 `console_pid` 操作
+  别人的终端——不传 pid 时 `newestConsole()` 也不带会话过滤，等于可以读别人屏幕、在别人已登录的
+  终端里执行命令、上传下载文件。现在解析终端时比对 `cover.sessionId`（spawn 时取自
+  `DSH_SESSION_ID`）与调用方会话（`exec.agent.id`），不匹配直接 `CONSOLE_FORBIDDEN`；
+  `remote_status` 只列本会话的终端；审计记录新增 `session` 字段，可从 `pid` 追到会话。
+  两边信息缺失时（老版本 DSH、插件自测、手动登记的终端）退回旧行为，不误伤。
+
 ## [0.10.2] - 2026-10-28
 
 设置页「主机列表」重做，并修掉首次保存就报冲突的问题。

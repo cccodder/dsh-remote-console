@@ -191,6 +191,11 @@ If the index does not update or the version does not change after clicking updat
 - **Credentials never pass through the plugin**: the password is typed into `ssh`'s own
   prompt. `hosts.tsv` stores only host/user/port (mode 0600), the data dir is 0700, and no
   key material is ever written.
+- **Terminals are isolated per session**: tools only accept consoles opened by the calling
+  session — ownership comes from `DSH_SESSION_ID` at spawn time, the caller from `exec.agent.id`.
+  A mismatch makes `remote_*` fail with `CONSOLE_FORBIDDEN`, and `remote_status` lists only this
+  session's consoles. Audit records carry both `pid` and `session`, so a terminal can be traced
+  back to the session that used it.
 - **No writes during authentication**: while the screen sits on `password:`, `(yes/no)?`,
   `Permission denied`, etc., agent writes are rejected (`AUTH_REQUIRED`).
 - **Dangerous-command approval**: `remote_run`/`remote_exec` bypass the DSH sandbox, so the

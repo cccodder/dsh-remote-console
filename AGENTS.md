@@ -35,6 +35,13 @@ writes the **same PTY** through text tools. Nothing in DSH itself is modified.
    user. Prepare the change, report what and why, and wait. Creating the GitHub release is the
    publish trigger, so it counts as releasing.
 
+8. **Every console has an owner, and tools must check it.** Resolving a console by `console_pid` or
+   by "newest" is never enough: compare `cover.sessionId` (recorded from `spec.env.DSH_SESSION_ID`
+   at spawn) with the caller session (`exec.agent.id`) and fail with `CONSOLE_FORBIDDEN` on a
+   mismatch. `remote_status` lists only the caller's consoles, and audit records carry both `pid`
+   and `session`. Subagent/child sessions have their own SessionId and deliberately do not inherit
+   their parent's terminal.
+
 ## Commands
 
 Run in the repository root:

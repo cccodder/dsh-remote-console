@@ -187,6 +187,10 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 
 - **凭据不经过插件**：密码只在 `ssh` 自己的提示符里输入。`hosts.tsv` 只记 host/user/port（0600），
   数据目录 0700；仓库里不含任何密钥。
+- **终端按会话隔离**：工具只认调用方会话自己打开的终端——归属来自 spawn 时的 `DSH_SESSION_ID`，
+  调用方来自 `exec.agent.id`；不匹配时 `remote_*` 直接报 `CONSOLE_FORBIDDEN`，`remote_status`
+  也只列本会话的终端。同一宿主进程里多个会话并存时，读别人屏幕、在别人终端里执行、传文件都会被拒。
+  审计记录同时记 `pid` 与 `session`，事后可以从终端追到会话。
 - **认证期拒写**：屏幕停在 `password:`、`(yes/no)?`、`Permission denied` 等状态时，
   agent 的任何写入都会被拒绝（`AUTH_REQUIRED`），避免它替你回答认证问题。
 - **危险命令审批**：`remote_run` / `remote_exec` 绕过 DSH 沙箱，所以插件额外加了一道闸门：
