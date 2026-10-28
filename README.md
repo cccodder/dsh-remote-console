@@ -100,6 +100,18 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 `remote_run` 适合：要你看着执行、需要 TTY（sudo/vim/嵌套 ssh）、需要在两次调用间保留 shell 状态。
 `remote_exec` 适合：纯数据收集、脚本、必须用退出码判断成败的事。
 
+**怎么选通道（同一套判据也会出现在模型上下文里）**
+
+| 任务 | 用哪个 | 为什么 |
+| --- | --- | --- |
+| 用户应该看到的操作（安装、构建、diff、进度） | `remote_run` | 跑在用户正看着的同一个终端里，属于预期用法 |
+| 需要 tty / 交互（sudo 密码、vim、less、top、嵌套 ssh、REPL） | `remote_run` | 带外通道没有 tty，会直接报 `not a tty` |
+| 纯数据采集、长输出要解析 | `remote_exec` | 不进窗口，stdout/stderr 原生分离，退出码可靠 |
+
+规则只在存在已连接终端时注入系统提示（没有终端时不占 prompt）；用错通道时结果末尾会附一行
+纠正提示：`remote_run` 输出过大 → 建议下次用 `remote_exec`；`remote_exec` 报「需要 tty/密码」
+→ 建议改用 `remote_run`。`remote_status` 顶部也会给出当前通道摘要与选路提示。
+
 **文件与转发都复用同一个已认证连接**：`remote_upload` / `remote_download` /
 `remote_read_file` / `remote_write_file` / `remote_forward` 走终端的 ControlMaster socket，
 不弹密码、不重新认证，但**必须先有一个活着的 SSH 终端**；终端一结束它们立即失败

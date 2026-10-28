@@ -94,6 +94,19 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_audit_export(local_path, format?)` | Export the audit trail to a local `jsonl` / `csv` file (0600) for archiving or review |
 | `remote_close()` | Close the ssh master, clean up socket/rendezvous files, stop this console's tunnels |
 
+**Which channel to use (the same rules are shown to the model)**
+
+| Task | Tool | Why |
+| --- | --- | --- |
+| Anything the user should see (installs, builds, diffs, progress) | `remote_run` | Runs in the terminal the user is watching; this is the expected way to work |
+| Needs a tty or interaction (sudo password, vim, less, top, nested ssh, REPLs) | `remote_run` | The out-of-band channel has no tty and fails with `not a tty` |
+| Pure data collection, long output to parse | `remote_exec` | Invisible to the user, native stdout/stderr, reliable exit code |
+
+The rules are injected into the system prompt only while a console is connected (nothing is added
+when there is none). Misuse gets a one-line correction in the result: a large `remote_run` output
+suggests `remote_exec` next time, and `remote_exec` hitting "needs a tty" suggests `remote_run`.
+`remote_status` also starts with the current channel summary and the routing rule.
+
 **Files and tunnels reuse the same authenticated connection**: `remote_upload` / `remote_download` /
 `remote_read_file` / `remote_write_file` / `remote_forward` go through the console's ControlMaster
 socket — no password prompt, no re-authentication — but they **require a live SSH terminal** and fail

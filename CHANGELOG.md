@@ -26,6 +26,14 @@ extension points, so a DSH minor release may need a plugin release.
 - **主机列表改成逐条列表**：每台主机一行、带「删除」；下方输入框 +「添加」（回车也能加）；
   保存 / 取消 / 重新加载；空态提示。注释行（`#`）同样保留，不再是一个大文本框。
 
+### Changed
+
+- **引导模型选对通道**：新增系统提示选路规则（只在存在已连接终端时注入，没有终端时不占 prompt）、
+  两个工具描述改成「意图优先」（`remote_run` 是用户正在看的可见通道、属预期用法；
+  `remote_exec` 用于纯数据采集、需要 tty 时必须换 `remote_run`），并在结果里纠正误用：
+  `remote_run` 输出过大时提示下次用 `remote_exec`；`remote_exec` 命中「需要 tty / 密码」类报错时
+  提示改用 `remote_run`；`remote_status` 顶部新增通道摘要与选路提示。
+
 ### Fixed
 
 - **首次保存报「设置可能已被别处修改」**：保存时不再携带可能过期的快照修订号，由服务端用最新
