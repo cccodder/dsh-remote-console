@@ -77,6 +77,8 @@ describe('设置页主机 → 侧栏启动器', () => {
     const targetLauncher = result.find((entry) => entry.name === 'SSH ops@10.9.9.9:2220');
     const body = readFileSync(targetLauncher.path, 'utf8');
     assert.match(body, /--target "ops@10\.9\.9\.9:2220"/u);
+    // 启动器把 rc 目录自证给包装器：PTY 环境可能没有 DSH_HOME
+    assert.ok(body.includes(`--rc-dir "${paths.RC_DIR}"`), `启动器应带 --rc-dir：${body}`);
     const aliasLauncher = result.find((entry) => entry.name === 'SSH nas');
     assert.match(readFileSync(aliasLauncher.path, 'utf8'), /--host "nas"/u);
 

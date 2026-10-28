@@ -51,6 +51,7 @@ function makeContext({ withConfigForms = true } = {}) {
   const registrations = [];
   const effects = [];
   let whileServedCalls = 0;
+  let disposeCalls = 0;
   const slots = {
     inject(_name, register) {
       return register();
@@ -64,7 +65,9 @@ function makeContext({ withConfigForms = true } = {}) {
     getSnapshot: () => ({ status: 'ready', value: { hosts: '' }, revision: 3, writable: true }),
     subscribe: () => () => {},
     mutate: async () => true,
-    dispose() {},
+    dispose() {
+      disposeCalls += 1;
+    },
   };
   const configForms = withConfigForms
     ? {
@@ -106,7 +109,7 @@ function makeContext({ withConfigForms = true } = {}) {
       selectShell: () => {},
     },
   };
-  return { ctx, registrations, effects, injected, whileServed: () => whileServedCalls };
+  return { ctx, registrations, effects, injected, form, disposeCalls: () => disposeCalls, whileServed: () => whileServedCalls };
 }
 
 describe('设置页注册（客户端）', () => {
@@ -128,6 +131,26 @@ describe('设置页注册（客户端）', () => {
     assert.equal(whileServed(), 1);
     assert.deepEqual(injected, [['configForms']], '应该通过 ctx.inject 等待设置服务');
     const props = page.options.inject();
+    assert.equal(typeof props.form.mutate, 'function');
+  });
+
+  it('插件重载不 dispose configForms 的共享 form（回归：重载后设置页保存必失败）', () => {
+    const client = loadClient();
+    const { ctx, effects, registrations, form, disposeCalls } = makeContext();
+    client.apply(ctx);
+    assert.equal(disposeCalls(), 0, '挂载设置页时不能 dispose 宿主共享的 form');
+
+    // 模拟「插件行禁用再启用」：先执行本插件注册的所有 effect 清理（客户端插件卸载），再 apply 一次（重载）
+    for (const dispose of effects) {
+      if (typeof dispose === 'function') dispose();
+    }
+    assert.equal(disposeCalls(), 0, '卸载插件时不能 dispose 宿主共享的 form——它由 configForms 缓存复用');
+    assert.doesNotThrow(() => client.apply(ctx));
+
+    const page = registrations.filter((entry) => entry.options.name === 'plugins.row.config').at(-1);
+    assert.ok(page, '重载后应重新注册设置页');
+    const props = page.options.inject();
+    assert.equal(props.form, form, '重载后拿到的应该是同一个仍然可用的 form');
     assert.equal(typeof props.form.mutate, 'function');
   });
 
@@ -172,8 +195,13 @@ describe('设置页注册（客户端）', () => {
         return false;
       },
     };
-    // mutate 两次都失败、没有 set 兜底时，返回明确失败
-    assert.deepEqual(await saveHosts(alwaysFails, ['nas']), { ok: false, attempts: 2, mode: 'mutate' });
+    // mutate 两次都失败、没有 set 兜底时，返回明确失败，并且诊断里必须带原因（不能是空的）
+    assert.deepEqual(await saveHosts(alwaysFails, ['nas']), {
+      ok: false,
+      attempts: 2,
+      mode: 'mutate',
+      error: 'mutate 返回 false（DSH 没有接受写入）',
+    });
     assert.equal(fails, 2);
 
     // 有 set 时用它兜底（单字段写入走另一条路径）
@@ -190,6 +218,12 @@ describe('设置页注册（客户端）', () => {
     assert.deepEqual(await saveHosts(withSet, ['nas']), { ok: true, attempts: 3, mode: 'set' });
     assert.equal(setCalls, 1);
 
+    // set 返回 false 时也要留下原因，供设置页诊断串展示（之前诊断串结尾是空的）
+    const setFails = { mutate: async () => false, set: async () => false };
+    const failedSet = await saveHosts(setFails, ['nas']);
+    assert.equal(failedSet.ok, false);
+    assert.match(String(failedSet.error), /set 返回 false/u);
+
     const revisions = [];
     await saveHosts(
       {
@@ -201,6 +235,17 @@ describe('设置页注册（客户端）', () => {
       ['nas'],
     );
     assert.deepEqual(revisions, [undefined], '不传 expectedRevision，由服务端用最新修订号');
+
+    // 每次尝试前都刷新快照：失败两次时会刷新两次（+ set 兜底前一次）
+    let refreshCalls = 0;
+    await saveHosts(
+      { mutate: async () => false },
+      ['nas'],
+      async () => {
+        refreshCalls += 1;
+      },
+    );
+    assert.ok(refreshCalls >= 2, `失败重试前应刷新快照，实际 ${refreshCalls} 次`);
   });
 
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {

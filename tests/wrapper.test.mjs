@@ -98,6 +98,29 @@ describe('bin/dsh-ssh 菜单', () => {
   });
 });
 
+describe('bin/dsh-ssh --rc-dir（不依赖 DSH_HOME）', () => {
+  it('环境里没有 DSH_HOME / DSH_REMOTE_CONSOLE_DIR 时，用 --rc-dir 指定的目录', () => {
+    const target = mkdtempSync(join(tmpdir(), 'dsh-rc-rcflag-'));
+    const sshConfig = join(target, 'ssh_config');
+    writeFileSync(sshConfig, 'Host alpha\n  HostName 10.0.0.1\n');
+    const result = spawnSync('bash', [wrapper, '--host', 'alpha', '--rc-dir', target], {
+      input: '',
+      encoding: 'utf8',
+      timeout: 20000,
+      env: {
+        PATH: process.env.PATH,
+        DSH_SSH_CONFIG: sshConfig,
+        DSH_RC_DRYRUN: '1',
+      },
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    // socket 路径必须落在 --rc-dir 下
+    assert.ok(result.stdout.includes(`${target}/socks/`), 'socket 路径必须落在 --rc-dir 下');
+    assert.ok(existsSync(join(target, 'sessions')), '应该在 --rc-dir 下建 sessions');
+    assert.ok(existsSync(join(target, 'wrapper.log')), '配置覆盖日志应写进 --rc-dir');
+  });
+});
+
 describe('bin/dsh-ssh 直接指定主机', () => {
   it('--host 走 dry-run', () => {
     const { status, stdout } = run(['--host', 'alpha'], '');
