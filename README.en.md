@@ -107,6 +107,27 @@ tool stops working, and a human must reopen the terminal and log in again. Such 
 for approval first, and the terminal says plainly that it has ended instead of pretending
 the session is still usable.
 
+## Managing the host list from the settings page
+
+Besides `~/.ssh/config`, the panel's host list can be maintained from the plugin's settings page
+(stored in this plugin row's profile config, so it survives reinstall):
+
+1. Sidebar → **Plugins** → find the `dsh-remote-console` row → open its **configuration**.
+2. In "Hosts", put one host per line: an alias from `~/.ssh/config`, or `user@host[:port]`;
+   lines starting with `#` are comments. Example:
+
+   ```
+   nas
+   ops@10.0.0.5:22
+   ```
+
+3. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh
+   config, `user@host:port` targets skip the menu and connect directly.
+
+The page writes `config.hosts` on this row's profile patch, so editing that file by hand works the
+same way. It needs DSH's settings/config-form service (`ctx.configForms`); without it the page is
+simply not registered and the terminal keeps working.
+
 ## Updates
 
 **Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.5`). The

@@ -30,6 +30,7 @@ jobs:
           @deepseek-ai/dsh-home-paths@next
           @deepseek-ai/dsh-tools@next
           @deepseek-ai/dsh-plugin-market-index@next
+          @deepseek-ai/schemastery@3.18.5
 
       - name: Report the versions under test
         run: |
