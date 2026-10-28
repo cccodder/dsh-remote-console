@@ -1,6 +1,6 @@
 # dsh-remote-console
 
-[中文](README.md) | English
+[中文](https://github.com/cccodder/dsh-remote-console/blob/main/README.md) | English
 
 ![version](https://img.shields.io/github/v/release/cccodder/dsh-remote-console?label=version)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
@@ -15,9 +15,9 @@ The plugin does not reimplement a terminal: rendering, input and window manageme
 DSH's own terminal. It only adds remote launchers to the shell list, captures that PTY's
 byte stream, and gives the agent tools that write into the same terminal.
 
-![The SSH remote panel in the right sidebar; example host names are redacted](docs/images/ssh-panel.png)
+![The SSH remote panel in the right sidebar; example host names are redacted](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-![The agent running commands in the same remote terminal; example host names are redacted](docs/images/ssh-agent-terminal.png)
+![The agent running commands in the same remote terminal; example host names are redacted](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
 ## Why
 
@@ -33,7 +33,7 @@ appear in the window like human typing, and the exit code comes from the shell's
 
 Requires DSH `>= 0.2.1-rc.2 <0.3.0-0` and a system `ssh` client.
 The full version / platform / capability matrix (including unverified items, the Windows status and
-pnpm 11 installation notes) is in [docs/compat.md](docs/compat.md).
+pnpm 11 installation notes) is in [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md).
 
 **npm package**: `dsh-remote-console` (https://www.npmjs.com/package/dsh-remote-console).
 
@@ -97,7 +97,7 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 socket — no password prompt, no re-authentication — but they **require a live SSH terminal** and fail
 immediately once it ends (`BatchMode=yes`, fail closed). Writing sensitive paths such as `~/.ssh`,
 `/etc`, sudoers or a shell profile asks for approval once. The full capability matrix is in
-[docs/compat.md](docs/compat.md).
+[docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md).
 
 **`exit` semantics**: host launchers and "new session" are one-shot — when the remote shell
 exits (`exit`/`logout` in a command, or ssh drops), the whole console ends, every `remote_*`
@@ -177,7 +177,7 @@ If the index does not update or the version does not change after clicking updat
 ## Reporting a vulnerability
 
 Please report privately through GitHub Security Advisories, not in a public issue. The full
-policy (supported versions, what the plugin promises, known limitations) is in [SECURITY.md](SECURITY.md).
+policy (supported versions, what the plugin promises, known limitations) is in [SECURITY.md](https://github.com/cccodder/dsh-remote-console/blob/main/SECURITY.md).
 
 ## Environment variables
 
@@ -193,7 +193,7 @@ policy (supported versions, what the plugin promises, known limitations) is in [
 ## Troubleshooting
 
 Find the logs first (last item), then match your symptom. Version / platform differences
-(DSH 0.3.0, Windows, pnpm 11) are covered in [docs/compat.md](docs/compat.md); the design behind
+(DSH 0.3.0, Windows, pnpm 11) are covered in [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md); the design behind
 authentication, approval and log retention is in the [security model](#security).
 
 ### 1. `ssh: command not found`
@@ -215,7 +215,7 @@ sudo dnf install -y openssh-clients
 # macOS ships /usr/bin/ssh, so it normally needs no install
 ```
 
-Windows is not supported; see [docs/compat.md](docs/compat.md#platforms).
+Windows is not supported; see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms).
 
 ### 2. `Bad owner or permissions on ...`
 
@@ -354,7 +354,7 @@ user names and tokens removed.
 ## Compatibility
 
 The full version × platform × capability matrix (including unverified items and installation
-notes) is in [docs/compat.md](docs/compat.md).
+notes) is in [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md).
 
 - The plugin wraps DSH's terminal services (`ctx.subprocess.spawnTerminal`,
   `ctx.terminalController.shells|retain`, client `ctx.webTerminals.launchShells`). This is
@@ -362,7 +362,7 @@ notes) is in [docs/compat.md](docs/compat.md).
   changes to those internals need a matching update (`engines.dsh` declares the tested range
   `>=0.2.1-rc.2 <0.3.0-0`; DSH 0.3.0 is not verified).
 - Platforms: macOS and Linux are supported; **Windows is not supported yet** and is planned for
-  the next release (see [docs/compat.md](docs/compat.md#platforms)).
+  the next release (see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms)).
 - Remote shells start as `bash -li` to install the `PROMPT_COMMAND` hook. Without bash the
   plugin falls back to sentinel framing — same capability, slightly noisier screen.
 - No full terminal emulation: in-line overwrite is simplified, so `remote_screen` can
@@ -412,10 +412,10 @@ your global DSH install (CI installs them with `npm install --no-save`), and
 1 MiB transfers in both directions, port forwarding and exit-code passthrough; the whole group is
 skipped when no `ssh`/`sshd` is available, so `npm test` passes on both kinds of machine.
 
-- Development rules and branch model: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Agent rules: [AGENTS.md](AGENTS.md)
-- Manual end-to-end verification: [docs/verify-e2e.md](docs/verify-e2e.md)
-- Real-device release checklist: [docs/dev/release-checklist.md](docs/dev/release-checklist.md)
+- Development rules and branch model: [CONTRIBUTING.md](https://github.com/cccodder/dsh-remote-console/blob/main/CONTRIBUTING.md)
+- Agent rules: [AGENTS.md](https://github.com/cccodder/dsh-remote-console/blob/main/AGENTS.md)
+- Manual end-to-end verification: [docs/verify-e2e.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/verify-e2e.md)
+- Real-device release checklist: [docs/dev/release-checklist.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/dev/release-checklist.md)
 - Release process: bump version + CHANGELOG + `npm run market:index` in a release PR, merge,
   then publish the `vX.Y.Z` GitHub release; the workflow validates the tag, runs the tests,
   publishes to npm with provenance and attaches the `.tgz` to the release.
@@ -435,6 +435,6 @@ skipped when no `ssh`/`sshd` is available, so `npm test` passes on both kinds of
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/cccodder/dsh-remote-console/blob/main/LICENSE).
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
