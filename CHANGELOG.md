@@ -8,6 +8,22 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-28
+
+设置页「主机列表」重做，并修掉首次保存就报冲突的问题。
+
+### Changed
+
+- **主机列表改成逐条列表**：每台主机一行、带「删除」；下方输入框 +「添加」（回车也能加）；
+  保存 / 取消 / 重新加载；空态提示。注释行（`#`）同样保留，不再是一个大文本框。
+
+### Fixed
+
+- **首次保存报「设置可能已被别处修改」**：保存时不再携带可能过期的快照修订号，由服务端用最新
+  修订号判定；第一次被拒会在 400ms 后自动重试一次，仍失败则改用单字段写入兜底。
+- 仍失败时提示里带诊断串（status/revision/writable/mode/attempts）并在 Console 打一条 warn，
+  草稿保留、旁边有「重新加载」按钮，方便把失败原因原样回传。
+
 ## [0.10.1] - 2026-10-28
 
 主机列表「找不到入口」修正：设置页在两个位置出现，并且不依赖设置页也能管理主机。
@@ -304,7 +320,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...v0.9.0
