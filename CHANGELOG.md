@@ -8,6 +8,41 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Added
+
+- **单文件传输上限可配**：`remote_upload` / `remote_download` 的上限从写死的 256 MB 变成配置项。
+  设置页「主机列表」同一个卡片里新增「单文件传输上限（MB）」输入框，范围 1–2048，保存后立即
+  生效（不用重载插件）；无界面部署可用 `DSH_RC_MAX_TRANSFER_MB` 环境变量，设置页里的值优先。
+  配置写错时退回默认 256 MB，不会把上限变成「无限制」或 0。超限报错会直接说明去哪改。
+  没有 ControlMaster 的 PTY 通道仍是 1 MiB 硬上限（终端分块传输的物理限制，与本设置取较小值）。
+
+### Changed
+
+- **引导模型选对通道**：新增系统提示选路规则（只在存在已连接终端时注入，没有终端时不占 prompt）、
+  两个工具描述改成「意图优先」（`remote_run` 是用户正在看的可见通道、属预期用法；
+  `remote_exec` 用于纯数据采集、需要 tty 时必须换 `remote_run`），并在结果里纠正误用：
+  `remote_run` 输出过大时提示下次用 `remote_exec`；`remote_exec` 命中「需要 tty / 密码」类报错时
+  提示改用 `remote_run`；`remote_status` 顶部新增通道摘要与选路提示。
+
+### Fixed
+
+- **插件重载后设置页保存必失败**：设置页不再 `dispose()` 宿主 `configForms` 里缓存的共享 form。
+  插件行禁用再启用会触发客户端插件卸载，旧代码在 effect 清理里把宿主这个 form 一起 dispose，
+  重新挂载时 `configForms.get()` 仍返回同一个已 dispose 的实例，`mutate` 一律返回 false
+  （revision 冻结不动），所有保存都失败。现在 form 的生命周期完全交给 `configForms`，卸载只
+  清理本插件自己的 slot 注册。
+- 失败诊断不再缺失原因：`mutate` / `set` 返回 false 时也把原因写进诊断串；「重新加载」按钮的
+  提示改为如实说明它会刷新页面、当前草稿会丢（之前写「草稿保留」）。
+
+### Security
+
+- **工具按会话隔离终端（修越权）**：之前同一宿主进程里的任何会话都能通过 `console_pid` 操作
+  别人的终端——不传 pid 时 `newestConsole()` 也不带会话过滤，等于可以读别人屏幕、在别人已登录的
+  终端里执行命令、上传下载文件。现在解析终端时比对 `cover.sessionId`（spawn 时取自
+  `DSH_SESSION_ID`）与调用方会话（`exec.agent.id`），不匹配直接 `CONSOLE_FORBIDDEN`；
+  `remote_status` 只列本会话的终端；审计记录新增 `session` 字段，可从 `pid` 追到会话。
+  两边信息缺失时（老版本 DSH、插件自测、手动登记的终端）退回旧行为，不误伤。
+
 ## [0.10.2] - 2026-10-28
 
 设置页「主机列表」重做，并修掉首次保存就报冲突的问题。

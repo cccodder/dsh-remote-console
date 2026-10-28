@@ -86,8 +86,8 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | `remote_status` | 终端、主机、socket、状态、最后几行屏幕 |
 | `remote_run(command)` | 写进同一个 PTY（窗口里可见），返回输出 + 真实退出码（PTY 会把 stderr 并进输出） |
 | `remote_exec(command, cwd?)` | 复用 ControlMaster socket 的带外执行：原生 stdout/stderr/退出码，不污染终端窗口 |
-| `remote_upload(local_path, remote_path, overwrite?)` | 本地 → 远端：流式传输并双向校验 sha256，默认不覆盖，单文件上限 256 MB |
-| `remote_download(remote_path, local_path, overwrite?)` | 远端 → 本地：流式传输并校验 sha256，默认不覆盖本地文件，上限 256 MB |
+| `remote_upload(local_path, remote_path, overwrite?)` | 本地 → 远端：流式传输并双向校验 sha256，默认不覆盖，单文件上限默认 256 MB（设置页可改 1–2048 MB） |
+| `remote_download(remote_path, local_path, overwrite?)` | 远端 → 本地：流式传输并校验 sha256，默认不覆盖本地文件，上限同上 |
 | `remote_read_file(path, max_bytes?)` | 读远端文本（默认 128 KB、上限 256 KB）；二进制文件拒绝显示，提示改用 `remote_download` |
 | `remote_write_file(path, content, append?)` | 写 ≤256 KB 的 UTF-8 文本；内容走 stdin，不进终端窗口 |
 | `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` 管理端口转发：`ssh -N -L 127.0.0.1:...`，只绑回环 |
@@ -99,6 +99,18 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 
 `remote_run` 适合：要你看着执行、需要 TTY（sudo/vim/嵌套 ssh）、需要在两次调用间保留 shell 状态。
 `remote_exec` 适合：纯数据收集、脚本、必须用退出码判断成败的事。
+
+**怎么选通道（同一套判据也会出现在模型上下文里）**
+
+| 任务 | 用哪个 | 为什么 |
+| --- | --- | --- |
+| 用户应该看到的操作（安装、构建、diff、进度） | `remote_run` | 跑在用户正看着的同一个终端里，属于预期用法 |
+| 需要 tty / 交互（sudo 密码、vim、less、top、嵌套 ssh、REPL） | `remote_run` | 带外通道没有 tty，会直接报 `not a tty` |
+| 纯数据采集、长输出要解析 | `remote_exec` | 不进窗口，stdout/stderr 原生分离，退出码可靠 |
+
+规则只在存在已连接终端时注入系统提示（没有终端时不占 prompt）；用错通道时结果末尾会附一行
+纠正提示：`remote_run` 输出过大 → 建议下次用 `remote_exec`；`remote_exec` 报「需要 tty/密码」
+→ 建议改用 `remote_run`。`remote_status` 顶部也会给出当前通道摘要与选路提示。
 
 **文件与转发都复用同一个已认证连接**：`remote_upload` / `remote_download` /
 `remote_read_file` / `remote_write_file` / `remote_forward` 走终端的 ControlMaster socket，
@@ -132,8 +144,14 @@ sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/�
 4. 点「保存」。宿主侧会重新生成侧栏「SSH 远程」里的启动器：别名走 ssh 配置，
    `user@host:port` 直接进 ssh 并跳过菜单。
 
+同一个页面里还有 **「单文件传输上限（MB）」**：默认 256，可填 1–2048，控制
+`remote_upload` / `remote_download` 的单文件上限，保存后立即生效（不用重载插件）。
+没有 ControlMaster 的平台会退回 PTY 通道，那条通道的硬上限是 1 MiB，与本设置无关。
+无界面部署可以用环境变量 `DSH_RC_MAX_TRANSFER_MB` 设同一个值（设置页里的值优先）。
+
 > 只在插件包详情页出现、或者在行里出现「配置」按钮，说明这个部署提供了 DSH 的设置服务
-> （`ctx.configForms`）。如果两处都没有，用下面的方式二——终端功能不受影响。
+> （`ctx.configForms`）。如果两处都没有，用下面的方式二——终端功能不受影响；传输上限退回
+> 默认 256 MB（或用 `DSH_RC_MAX_TRANSFER_MB`）。
 
 **方式二：让 agent 添加（不需要设置页）**
 
@@ -187,6 +205,10 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 
 - **凭据不经过插件**：密码只在 `ssh` 自己的提示符里输入。`hosts.tsv` 只记 host/user/port（0600），
   数据目录 0700；仓库里不含任何密钥。
+- **终端按会话隔离**：工具只认调用方会话自己打开的终端——归属来自 spawn 时的 `DSH_SESSION_ID`，
+  调用方来自 `exec.agent.id`；不匹配时 `remote_*` 直接报 `CONSOLE_FORBIDDEN`，`remote_status`
+  也只列本会话的终端。同一宿主进程里多个会话并存时，读别人屏幕、在别人终端里执行、传文件都会被拒。
+  审计记录同时记 `pid` 与 `session`，事后可以从终端追到会话。
 - **认证期拒写**：屏幕停在 `password:`、`(yes/no)?`、`Permission denied` 等状态时，
   agent 的任何写入都会被拒绝（`AUTH_REQUIRED`），避免它替你回答认证问题。
 - **危险命令审批**：`remote_run` / `remote_exec` 绕过 DSH 沙箱，所以插件额外加了一道闸门：
@@ -196,7 +218,9 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
   `remote_run` 里会结束整个终端的 `exit` / `logout` / `pkill ssh` 同样需要审批。
 - **传输有校验、转发只绑回环**：`remote_upload` / `remote_download` 流式传输并在两端各算一次
   sha256（远端没有 `sha256sum` / `shasum` 时结果会标成 `verified: unavailable`）；默认拒绝覆盖
-  已有文件，要显式 `overwrite: true`。`remote_forward` 只监听 `127.0.0.1`，局域网其他机器连不上，
+  已有文件，要显式 `overwrite: true`。单文件上限默认 256 MB，设置页可调 1–2048 MB
+  （`DSH_RC_MAX_TRANSFER_MB` 环境变量同效），超限直接拒绝并提示去改哪里。
+  `remote_forward` 只监听 `127.0.0.1`，局域网其他机器连不上，
   终端结束或 `remote_close` 时自动停。写 `~/.ssh`、`/etc`、sudoers、shell profile 这类敏感路径
   前会先要你审批一次。
 - **会话日志会消失，审计不会**：PTY 结束即删除含屏幕输出的会话日志（保留内存事件供当场回看）；

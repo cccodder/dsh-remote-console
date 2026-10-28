@@ -84,6 +84,32 @@ describe('Node 包装器（Windows 用）', () => {
     assert.match(hosts, /^10\.8\.8\.8\tdeploy\t2200$/mu);
   });
 
+  it('--rc-dir 覆盖环境变量：环境里没有 DSH_HOME 也写到指定目录', async () => {
+    const target = mkdtempSync(join(tmpdir(), 'dsh-rc-win-rcflag-'));
+    const sshConfig2 = join(target, 'ssh_config');
+    writeFileSync(sshConfig2, 'Host alpha\n  HostName 10.0.0.1\n');
+    const stub = join(target, 'ssh');
+    writeFileSync(stub, '#!/bin/sh\ncase "$1" in -G) exit 1;; esac\nsleep 3\nexit 0\n', { mode: 0o755 });
+    const env = {
+      PATH: `${target}:${process.env.PATH}`,
+      DSH_SSH_CONFIG: sshConfig2,
+      DSH_RC_DRYRUN: '0',
+    };
+    const child = spawn(process.execPath, [wrapperMjs, '--host', 'alpha', '--rc-dir', target], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let payload;
+    for (let index = 0; index < 40; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const files = readdirSync(join(target, 'sessions'));
+      if (files.length > 0) {
+        payload = JSON.parse(readFileSync(join(target, 'sessions', files[0]), 'utf8'));
+        break;
+      }
+    }
+    child.kill('SIGKILL');
+    assert.ok(payload, '应该在 --rc-dir 下写 rendezvous');
+    assert.equal(payload.host, 'alpha');
+  });
+
   it('非 dry-run 时写 rendezvous，socket 为空（宿主据此走 PTY）', async () => {
     // 假 ssh 先睡一会，好在它退出、rendezvous 被删之前读到文件
     const stubDir = join(rcDir, 'stubs-slow');
@@ -142,9 +168,11 @@ describe('无 ControlMaster 时的通道选择', () => {
       const alias = shells.find((entry) => entry.name === 'SSH target-host');
       const target = shells.find((entry) => entry.name === 'SSH ops@10.9.9.9:2220');
       assert.equal(alias.path, process.execPath);
-      assert.deepEqual(alias.args, [wrapperMjs, '--host', 'target-host']);
-      assert.deepEqual(target.args, [wrapperMjs, '--target', 'ops@10.9.9.9:2220']);
-      assert.ok(shells.some((entry) => entry.name === 'SSH 新建会话' && entry.args[1] === '--ask-target'));
+      // 启动器把 rc 目录传下去：PTY 环境可能没有 DSH_HOME，不能靠环境变量推
+      assert.deepEqual(alias.args, [wrapperMjs, '--host', 'target-host', '--rc-dir', rcDir]);
+      assert.deepEqual(target.args, [wrapperMjs, '--target', 'ops@10.9.9.9:2220', '--rc-dir', rcDir]);
+      const newSession = shells.find((entry) => entry.name === 'SSH 新建会话');
+      assert.deepEqual(newSession.args, [wrapperMjs, '--ask-target', '--rc-dir', rcDir]);
     } finally {
       if (previous === undefined) delete process.env.DSH_RC_FORCE_NODE_LAUNCHERS;
       else process.env.DSH_RC_FORCE_NODE_LAUNCHERS = previous;
