@@ -55,9 +55,11 @@ passes on a machine without them.
   (terminal, exec, file transfer, port forwarding, audit read/export), dangerous-command and
   sensitive-write approval, session-log lifecycle, and the cross-session audit trail in `audit/`.
 - `lib/client.js` — browser bundle, hand-written: sidebar guide card, host panel, terminal tab,
-  version/update hint. Updates are cached 6h; failures stay silent.
-- `bin/dsh-ssh` — bash wrapper: host menu / one-shot launcher, rendezvous file, portable
-  timestamps. Must stay POSIX-bash and macOS-compatible.
+  version/update hint, and the plugin-row settings page (host list over `ctx.configForms`,
+  registered only when that service exists). Updates are cached 6h; failures stay silent.
+- `bin/dsh-ssh` — bash wrapper: host menu / one-shot launcher (`--host`, `--target`,
+  `--ask-target`), rendezvous file, portable timestamps. Must stay POSIX-bash and
+  macOS-compatible.
 - `tests/` — `console.test.mjs` (fake remote shell replaying OSC frames), `plugin.test.mjs`
   (load against fake DSH services), `client.test.mjs` (HMR idempotency, update compare),
   `wrapper.test.mjs` (dry-run menu, BSD `date`, exit messages), `transfer.test.mjs`

@@ -8,6 +8,32 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-28
+
+主机管理设置页：不用再手改 `~/.ssh/config` 或 `hosts.tsv`，在 DSH 插件页里就能维护面板的主机列表。
+
+### Added
+
+- 插件行设置页「主机列表」：侧栏「插件」→ `dsh-remote-console` 行 → 配置。每行一个远端
+  （ssh 配置别名，或 `user@host[:port]`），`#` 开头为注释；保存写进该行 profile patch 的
+  `config.hosts`，宿主随即生成/清理侧栏「SSH 远程」里的启动器。
+- 宿主新增 `Config`（`@deepseek-ai/schemastery`，`hosts` 为 `volatile()` 字段），并把它
+  作为新的 peer 依赖；CI/发版工作流安装对应版本。
+- `bin/dsh-ssh` 新增 `--target <spec>`：面板里配置的 `user@host:port` 直接进 ssh、跳过菜单；
+  与「新建会话」的 `--ask-target` 共用同一套解析（含 IPv6 不误拆端口）。
+- 设置页只在部署提供 DSH 设置服务（`ctx.configForms`）时注册；没有该服务时页面不出现，
+  终端功能不受影响。
+
+### Changed
+
+- 启动器生成区分两条路：ssh 别名用 `--host`，直连目标用 `--target`；设置里删掉的主机会在
+  下一次生成时清理，不会留在下拉里。
+
+### Tests
+
+- `tests/settings-host.test.mjs`（Config 解析、行过滤、启动器生成与清理）与
+  `tests/settings-client.test.mjs`（有/无 configForms 的注册行为、版本一致）。
+
 ## [0.8.0] - 2026-10-28
 
 跨会话审计日志：agent 在这台机器上做过什么，不再随着关终端一起消失。
@@ -225,7 +251,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...v0.7.0

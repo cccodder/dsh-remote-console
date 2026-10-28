@@ -67,6 +67,8 @@ while [ $# -gt 0 ]; do
     -i|--interactive|-l|--login) shift ;;
     --host|-H) FORCED_HOST="${2:-}"; shift 2 ;;
     --host=*) FORCED_HOST="${1#--host=}"; shift ;;
+    --target|-T) TARGET_SPEC="${2:-}"; shift 2 ;;
+    --target=*) TARGET_SPEC="${1#--target=}"; shift ;;
     --ask-target) ASK_TARGET=1; shift ;;
     *) shift ;;
   esac
@@ -174,12 +176,10 @@ new_host() {
   return 0
 }
 
-# 「新建会话」：不进菜单，直接问一个 user@host[:port]，然后进 ssh。
-ask_target() {
-  printf '新建 SSH 会话 —— 目标（user@host，可加 :port，直接回车取消）: '
-  local line
-  read -r line || return 1
-  line="${line//[[:space:]]/}"
+# 解析 user@host[:port]（去空白、只在恰好一个冒号时按端口拆，避免 IPv6 拆错）。
+# 设置面板生成的启动器（--target）和交互式「新建会话」共用同一套规则。
+parse_target_string() {
+  local line="${1//[[:space:]]/}"
   [ -n "$line" ] || return 1
   local user="" hostport="$line"
   if [[ "$line" == *@* ]]; then
@@ -187,7 +187,6 @@ ask_target() {
     hostport="${line#*@}"
   fi
   local host="$hostport" port=""
-  # 只在「恰好一个冒号」时按 host:port 解析，避免把 IPv6 拆错。
   if [[ "$hostport" == *:*:* ]]; then
     :
   elif [[ "$hostport" == *:* ]]; then
@@ -199,6 +198,14 @@ ask_target() {
   PICKED_USER="$user"
   PICKED_PORT="$port"
   return 0
+}
+
+# 「新建会话」：不进菜单，直接问一个 user@host[:port]，然后进 ssh。
+ask_target() {
+  printf '新建 SSH 会话 —— 目标（user@host，可加 :port，直接回车取消）: '
+  local line
+  read -r line || return 1
+  parse_target_string "$line"
 }
 
 run_ssh() {
@@ -257,6 +264,20 @@ run_ssh() {
 # 一次性模式（面板指定主机 / 新建会话）：ssh 退出后整个终端结束，
 # 提示语必须说清楚，不能让 agent 以为还能继续用。
 IN_MENU=0
+
+if [ -n "${TARGET_SPEC:-}" ]; then
+  PICKED_HOST=""; PICKED_USER=""; PICKED_PORT=""
+  if ! parse_target_string "$TARGET_SPEC"; then
+    echo "无效目标：$TARGET_SPEC（期望 alias 或 user@host[:port]）" >&2
+    exit 64
+  fi
+  run_ssh "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}"
+  _code=$?
+  if [ "$_code" = "0" ]; then
+    save_host "$PICKED_HOST" "${PICKED_USER:-}" "${PICKED_PORT:-}"
+  fi
+  exit "$_code"
+fi
 
 if [ -n "${FORCED_HOST:-}" ]; then
   _u=""; _p=""

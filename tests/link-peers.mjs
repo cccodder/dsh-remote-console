@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 
-const PEERS = ['dsh-home-paths', 'dsh-tools'];
+const PEERS = ['dsh-home-paths', 'dsh-tools', 'schemastery'];
 /** 只有测试用到的库（不参与运行时）；缺了也不影响被测代码，但市场索引测试需要它。 */
 const TEST_LIBS = ['dsh-plugin-market-index'];
 
