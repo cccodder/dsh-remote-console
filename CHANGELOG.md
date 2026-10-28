@@ -8,6 +8,34 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-28
+
+Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 回退通道。
+
+### Added
+
+- `bin/dsh-ssh.mjs`：没有 bash 的平台用的 Node 包装器，菜单、`--host` / `--target` /
+  `--ask-target`、rendezvous 与 bash 版一致；不传 `-M` / `-S`（Windows OpenSSH 没有
+  ControlMaster），rendezvous 里 socket 留空。
+- Windows 启动器改成 `node dsh-ssh.mjs --host|--target <spec>`（用 DSH 自带的
+  `process.execPath`，不需要系统另装 Node）；`wrapSpawnTerminal` 能识别这种启动器。
+- PTY 回退通道：终端没有 socket 时，`remote_exec`、`remote_upload` / `remote_download`、
+  `remote_read_file` / `remote_write_file` 自动改走同一个 PTY——命令与数据出现在用户窗口，
+  base64 分块传输（单文件 ≤1 MiB），仍然做 sha256 校验。
+- `remote_forward` 在 PTY 通道下明确返回 `FORWARD_UNAVAILABLE`（没有可复用的已认证连接）。
+- `remote_status` 增加 `transport: socket|pty`；工具输出里标注当前通道。
+
+### Changed
+
+- README / `docs/compat.md` / `SECURITY.md` 更新 Windows 状态：从「不支持」改为「实验性支持」，
+  写清哪些能力打折、哪些不可用，以及验证边界（CI 没有 Windows，逻辑用 Linux 等价路径验证）。
+
+### Tests
+
+- `tests/windows.test.mjs`：Node 包装器（dry-run 参数、菜单、新建主机、rendezvous 无 socket）、
+  Windows 启动器形态、spawnTerminal 识别、以及**无 socket 时工具真的走 PTY 并落盘/校验**。
+- `tests/pty-transport.test.mjs`：真实 shell 上的分块 base64 写入、读回、截断、sha256、上限拒绝。
+
 ## [0.9.0] - 2026-10-28
 
 主机管理设置页：不用再手改 `~/.ssh/config` 或 `hosts.tsv`，在 DSH 插件页里就能维护面板的主机列表。
@@ -251,7 +279,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...v0.7.1

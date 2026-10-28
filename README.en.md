@@ -243,7 +243,7 @@ sudo dnf install -y openssh-clients
 # macOS ships /usr/bin/ssh, so it normally needs no install
 ```
 
-Windows is not supported; see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms).
+Windows is supported experimentally (PTY fallback, no port forwarding); see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms).
 
 ### 2. `Bad owner or permissions on ...`
 
@@ -389,12 +389,34 @@ notes) is in [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blo
   the common community-plugin approach but **not a documented extension point**; DSH
   changes to those internals need a matching update (`engines.dsh` declares the tested range
   `>=0.2.1-rc.2 <0.3.0-0`; DSH 0.3.0 is not verified).
-- Platforms: macOS and Linux are supported; **Windows is not supported yet** and is planned for
-  the next release (see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms)).
+- Platforms: macOS and Linux are fully supported; **Windows is supported (experimental)** — the
+  terminal works, and tools fall back to the PTY channel when there is no ControlMaster (see
+  "Windows (experimental)" below and
+  [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms)).
 - Remote shells start as `bash -li` to install the `PROMPT_COMMAND` hook. Without bash the
   plugin falls back to sentinel framing — same capability, slightly noisier screen.
 - No full terminal emulation: in-line overwrite is simplified, so `remote_screen` can
   differ from the real screen in extreme TUI cases; trust `remote_run`/`remote_exec` for results.
+
+## Windows (experimental)
+
+Windows takes a different connection path: its OpenSSH build has **no ControlMaster**, so there is
+no reusable socket. The plugin starts the terminal through a Node wrapper (`bin/dsh-ssh.mjs`) and
+the agent tools automatically fall back to the PTY channel when no socket exists.
+
+- Terminal: works like macOS/Linux (the password is still typed into `ssh`'s own prompt; the
+  plugin never sees it).
+- Tools: `remote_run`, `remote_exec`, `remote_read_file`, `remote_write_file`,
+  `remote_upload`, `remote_download` all work, with differences — commands and data pass through
+  the user's window, `remote_exec` merges stdout/stderr, and transfers are capped at **1 MiB**
+  (base64 chunks through the terminal).
+- Not available: `remote_forward` (port forwarding needs one authenticated reusable connection).
+  `remote_audit_*` is unaffected.
+- Launchers are `node dsh-ssh.mjs --host/--target ...` and use the Node that ships with DSH
+  (`process.execPath`), so no extra system Node is needed.
+- Experimental: there is no Windows machine on the build host, so the logic is verified through
+  equivalent paths on Linux (Node wrapper, PTY chunked I/O, transport selection, automatic tool
+  fallback); the real Windows conpty rendering and line-length limits still need a device check.
 
 ## Benchmark (loopback)
 
