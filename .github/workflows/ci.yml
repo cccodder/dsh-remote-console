@@ -39,6 +39,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # `npm test` already picks this file up via the tests/*.test.mjs glob; the explicit
+      # step keeps the real-sshd coverage visible and re-runnable on its own. It skips
+      # itself cleanly on machines without ssh/sshd.
+      - name: Integration tests (real sshd + ControlMaster)
+        run: node --test tests/integration-sshd.test.mjs
+
       - name: Release metadata (version / client / changelog / market index)
         run: node scripts/check-release.mjs
 

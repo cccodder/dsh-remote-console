@@ -8,6 +8,42 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-28
+
+文件传输与端口转发：agent 现在能在**用户已经登录的那个连接**上搬文件、开隧道，
+不需要第二次认证，也不接触任何凭据。
+
+### Added
+
+- `remote_upload` / `remote_download`：经已认证的 ControlMaster socket 流式传输，
+  两侧比对 sha256，默认不覆盖（`overwrite: true` 才覆盖），单文件上限 256 MB。
+  下载先写临时文件、校验通过才原子改名，失败不会破坏本地已有文件。
+- `remote_read_file` / `remote_write_file`：读写远端小文本（默认 128 KB、写入上限 256 KB），
+  内容走 stdin/exec 通道，不会出现在用户终端窗口里；二进制文件拒绝当文本显示。
+- `remote_forward`：`start` / `stop` / `list`，等价于
+  `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>`，只绑回环地址；
+  终端结束、`remote_close`、插件卸载时统一取消。
+- 敏感路径写入审批：写 `~/.ssh`、`/etc`、`/root`、`/boot`、sudoers、systemd unit、
+  shell profile 会走 `ctx.approval` 一次性审批，没有审批服务时 fail closed。
+- 真实 sshd 集成测试（`tests/sshd-harness.mjs` + `tests/integration-sshd.test.mjs`）：
+  自己起临时 sshd，覆盖包装器登录、master 复用、1 MB 上下行 sha256、端口转发、退出码透传；
+  机器上没有 `ssh`/`sshd` 时整组跳过。CI 增加对应步骤。
+- `docs/compat.md`：DSH 版本 × 平台 × 能力兼容矩阵；README 增加中英「故障排查」7 条。
+- `scripts/bench.mjs`：SSH 通道基线（master 建立、exec 往返 p50/p95、1 MiB 上传/下载），
+  README 给出 loopback 实测数字与复现方法。
+
+### Changed
+
+- `engines.dsh` 收紧为 `>=0.2.1-rc.2 <0.3.0-0`：`0.3.0-rc.*` 不再被静默放行。
+- `DSH_SSH_CONFIG` 现在同时作用于终端包装器与 exec/传输/转发通道（此前只有包装器读它），
+  避免「终端连 A、工具连 B」。
+- README 工具表补到 11 个，并说明文件/转发复用同一个已认证连接、必须有活着的终端。
+
+### Fixed
+
+- 端口转发在多路复用下的停止语义：`-S` 指向已有 master 时 `ssh -N -L` 客户端会在请求成功后
+  立即退出，监听由 master 持有；停止改用 `ssh -O cancel`，关终端时也能正确回收。
+
 ## [0.6.7] - 2026-10-25
 
 ### Added
@@ -161,7 +197,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...v0.7.0
 [0.6.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.4...v0.6.5

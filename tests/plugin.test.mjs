@@ -1,6 +1,6 @@
 /**
  * 插件装载测试：用假的 Cordis ctx 跑 `apply()`，检查
- *  - 6 个 agent 工具都通过 defineTool 校验并注册
+ *  - 11 个 agent 工具都通过 defineTool 校验并注册
  *  - shells() 追加主机启动器，且会清理失效启动器
  *  - spawnTerminal 包装只接管 dsh-ssh* 进程，并把 output 换成 tee
  *  - 危险命令守卫在没有审批服务时 fail closed
@@ -71,7 +71,19 @@ describe('apply()', () => {
 
   it('注册全部 6 个工具', () => {
     const names = registered.map((tool) => tool.name).sort();
-    assert.deepEqual(names, ['remote_close', 'remote_exec', 'remote_log', 'remote_run', 'remote_screen', 'remote_status']);
+    assert.deepEqual(names, [
+      'remote_close',
+      'remote_download',
+      'remote_exec',
+      'remote_forward',
+      'remote_log',
+      'remote_read_file',
+      'remote_run',
+      'remote_screen',
+      'remote_status',
+      'remote_upload',
+      'remote_write_file',
+    ]);
     for (const tool of registered) {
       assert.equal(typeof tool.description, 'string');
       assert.equal(tool.output.schema.type, 'object');

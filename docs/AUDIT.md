@@ -79,3 +79,26 @@ tools registered
 浏览器入口页的模块启动图包含 `dsh-remote-console/client.js`，对应 combo 资源返回 200
 （1.98 MB，内含本插件客户端代码）。真实浏览器里的渲染与交互仍未验证（本机无浏览器），
 按 `docs/verify-e2e.md` 在带 ssh 的机器上过一遍即可。
+
+## 0.7.0 增补：文件传输与端口转发
+
+新增 5 个工具（`remote_upload`、`remote_download`、`remote_read_file`、`remote_write_file`、
+`remote_forward`）。审计要点：
+
+1. **不新建连接、不碰凭据**：全部复用用户已认证的 ControlMaster socket（`-S <sock>`），
+   并强制 `BatchMode=yes` + `ControlMaster=no`：认证过期或 socket 消失时立即失败，
+   不会退回交互提示，也不可能由插件自己「重新登录」。
+2. **传输完整性**：上传/下载两侧都算 sha256 并比对；远端没有 `sha256sum`/`shasum` 时
+   如实返回 `unavailable`，不假装校验过。下载先写临时文件，校验通过才 `rename`，
+   失败不会破坏本地已有文件。
+3. **覆盖是显式的**：`overwrite` 默认 false，远端/本地已存在同路径时直接报错。
+4. **路径安全**：写入路径禁止 `..`（否则敏感路径判定可被绕过）；写入
+   `~/.ssh`、`/etc`、`/root`、`/boot`、sudoers、systemd unit、shell profile 走
+   `ctx.approval` 一次性审批，没有审批服务时 fail closed。
+5. **端口转发只绑回环**：`ssh -N -L 127.0.0.1:<local>:<remote>`，局域网其他机器连不上；
+   隧道登记在插件状态里，终端结束、`remote_close`、插件卸载时统一回收。
+6. **多路复用语义的坑（本次实测发现）**：`-S` 指向已有 master 时，`ssh -N -L` 客户端
+   发出转发请求后**立即以 0 退出**，监听由 master 持有；因此「成功」只能看端口是否在监听，
+   停止必须用 `ssh -O cancel -L <spec>`，kill 那个已经退出的客户端是无效的。
+7. **配置来源统一**：`DSH_SSH_CONFIG` 以前只影响终端包装器的主机列表，现在 exec/传输/
+   转发与包装器都走同一个 `-F`，避免「终端连 A、工具连 B」。

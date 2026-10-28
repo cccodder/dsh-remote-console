@@ -3,7 +3,7 @@
 ## Supported versions
 
 The current `0.6.x` line is supported. `engines.dsh` in `package.json` pins the DeepSeek Harness
-versions the plugin is verified against (`>=0.2.1-rc.2 <0.3.0`); newer DSH majors are not
+versions the plugin is verified against (`>=0.2.1-rc.2 <0.3.0-0`); newer DSH majors are not
 supported until a plugin release widens that range.
 
 ## Reporting a vulnerability
@@ -62,7 +62,7 @@ the remote host from an agent the user has already authorized to run commands th
 ## 支持范围
 
 当前 `0.6.x` 系列受支持。`package.json` 的 `engines.dsh` 声明了验证过的 DeepSeek Harness
-范围（`>=0.2.1-rc.2 <0.3.0`）；DSH 大版本升级后，要在插件发版放宽范围前视为不支持。
+范围（`>=0.2.1-rc.2 <0.3.0-0`）；DSH 大版本升级后，要在插件发版放宽范围前视为不支持。
 
 ## 报告安全问题
 

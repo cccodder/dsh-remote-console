@@ -1,14 +1,16 @@
 # 端到端验证清单
 
-仓库自带的 `npm test` 只覆盖不依赖 `ssh` 的部分（菜单解析、OSC 帧、工具注册、危险命令判定）。
-真正「连到远端、看到终端、agent 写进去」必须在有 `ssh` 客户端的机器上验证，下面是隔离 profile 的完整步骤。
+仓库自带的 `npm test` 覆盖不依赖 `ssh` 的部分（菜单解析、OSC 帧、工具注册、危险命令判定、路径安全）。
+其中 `tests/integration-sshd.test.mjs` 会自己起一个 127.0.0.1 的临时 sshd，机器上有 `ssh`/`sshd`
+时真跑一遍「登录 → master 复用 → 上下行传输 → 端口转发 → 退出码透传」，没有就整组跳过。
+剩下必须在真人真机上验证的（密码/指纹交互、窗口观感、审批卡片）按下面的清单过。
 
 > 不要直接装进你日常用的 profile：先用独立 `DSH_HOME` 起一个旁路实例，验证完再决定是否升级到主 profile。
 
 ## 0. 前置
 
 ```bash
-dsh -V                 # 需要 >= 0.2.1-rc.2 < 0.3.0
+dsh -V                 # 需要 >= 0.2.1-rc.2 < 0.3.0-0
 which ssh              # 必须有系统 ssh 客户端
 ssh -o BatchMode=yes -o ConnectTimeout=5 <某台主机> true && echo ssh-ok
 ```
