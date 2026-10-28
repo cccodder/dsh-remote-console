@@ -8,6 +8,26 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
+跨会话审计日志：agent 在这台机器上做过什么，不再随着关终端一起消失。
+
+### Added
+
+- `audit/audit.jsonl`：**跨会话保留**的审计日志。只记 agent 的动作——命令文本（沿用脱敏规则）、
+  退出码、审批结果（批准/拒绝/无审批服务）、传输路径与字节数/sha256、端口转发、连接起止；
+  不含屏幕输出，也不含用户手敲的内容。8 MB 滚动、保留 5 份、文件 0600、目录 0700。
+- `remote_audit_read(cursor, max_bytes?, tool?)`：增量读取审计日志，可按工具过滤；没有活终端也能用。
+- `remote_audit_export(local_path, format?)`：导出为 `jsonl` 或 `csv`（固定列，0600），
+  便于归档、交给别人核对或在卸载前留档。
+- `DSH_RC_AUDIT=off` 可停止写入审计（读取/导出已有记录不受影响）；`remote_status` 显示审计文件
+  路径与大小；侧栏面板底部显示「审计：audit/」提示。
+
+### Changed
+
+- 明确区分两条日志：`logs/` 是现场回放（含屏幕输出，PTY 结束即删），`audit/` 是审计
+  （跨会话保留，不含屏幕内容）。README 安全模型、数据目录、环境变量表与 SECURITY.md 同步说明。
+
 ## [0.7.1] - 2026-10-28
 
 ### Fixed
@@ -205,7 +225,8 @@ extension points, so a DSH minor release may need a plugin release.
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.7...v0.7.0
 [0.6.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.6.6...v0.6.7

@@ -93,6 +93,8 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` 管理端口转发：`ssh -N -L 127.0.0.1:...`，只绑回环 |
 | `remote_screen(lines)` | 当前屏幕纯文本（剥 ANSI） |
 | `remote_log(cursor)` | 统一 JSONL 日志的增量读：人敲的命令、agent 的命令、两边输出 |
+| `remote_audit_read(cursor?, tool?)` | 读**跨会话保留**的审计日志：agent 执行过的命令/退出码、审批、传输、转发、连接起止（不含屏幕内容） |
+| `remote_audit_export(local_path, format?)` | 把审计日志导出成本地 `jsonl` / `csv`（0600），用于归档或核对 |
 | `remote_close()` | 断开 ssh master 并清理 socket/rendezvous 文件、停止该终端的转发 |
 
 `remote_run` 适合：要你看着执行、需要 TTY（sudo/vim/嵌套 ssh）、需要在两次调用间保留 shell 状态。
@@ -161,7 +163,9 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
   已有文件，要显式 `overwrite: true`。`remote_forward` 只监听 `127.0.0.1`，局域网其他机器连不上，
   终端结束或 `remote_close` 时自动停。写 `~/.ssh`、`/etc`、sudoers、shell profile 这类敏感路径
   前会先要你审批一次。
-- **日志会消失**：PTY 结束即删除会话日志（保留内存事件供当场回看）；DSH 崩溃留下的
+- **会话日志会消失，审计不会**：PTY 结束即删除含屏幕输出的会话日志（保留内存事件供当场回看）；
+  审计日志单独一条线，只记 agent 的动作、跨会话保留，命令文本沿用同一套脱敏规则，可用
+  `DSH_RC_AUDIT=off` 关闭、用 `remote_audit_read` / `remote_audit_export` 读取或导出；DSH 崩溃留下的
   残留日志会在下次插件启动时清扫。日志写入前会对 Bearer token、`sk-*`、
   `password=/token:/secret=` 一类赋值做脱敏，但**命令参数里的明文密钥仍可能出现在会话期间**，
   敏感操作请用环境变量或 `ssh-agent`。
@@ -180,6 +184,7 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 | `DSH_REMOTE_CONSOLE_DIR` | `$DSH_HOME/remote-console` | 数据目录（logs/sessions/socks/bin） |
 | `DSH_SSH_CONFIG` | `~/.ssh/config` | 主机别名来源 |
 | `DSH_RC_DANGER_GUARD` | `approve` | 设为 `off` 关闭危险命令审批（自担风险，仍会记审计事件） |
+| `DSH_RC_AUDIT` | `on` | 设为 `off` 停止写审计日志（读取/导出已有内容不受影响） |
 | `DSH_RC_DRYRUN` | `0` | 包装器 dry-run：只打印 ssh 命令不执行（测试用） |
 | `DSH_RC_NO_CLEAR` | `0` | 设为 `1` 不自动清屏（排查时用） |
 | `DSH_RC_SELFTEST` | `0` | 启动后跑一次内建自测并写 `selftest.log` |
@@ -403,7 +408,11 @@ npm run verify  # 只查版本号、客户端 VERSION、CHANGELOG、市场索引
 - `hosts.tsv`：手动新建过的主机（host/user/port）
 - `sessions/`：`terminal ↔ socket` 的 rendezvous（进程退出即清）
 - `socks/`：ControlMaster socket
-- `logs/`：会话 JSONL（会话结束即删）
+- `logs/`：会话 JSONL（含屏幕输出，会话结束即删）
+- `audit/audit.jsonl`：**跨会话保留**的审计日志——只记 agent 的动作：命令文本（已脱敏）、退出码、
+  审批结果、传输路径与 sha256、端口转发、连接起止；不含屏幕输出，也不含你手敲的内容。
+  8 MB 滚动、最多保留 5 份、文件权限 0600，`DSH_RC_AUDIT=off` 可停止写入。
+  用 `remote_audit_read` 读、`remote_audit_export` 导出。
 - `plugin.log`：插件诊断日志（不含凭据）
 - `wrapper.log`：包装器诊断日志（如 ssh 配置回退；只在触发时写入）
 - `selftest.log`：`DSH_RC_SELFTEST=1` 时的内建自测结果

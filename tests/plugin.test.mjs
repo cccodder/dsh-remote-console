@@ -1,6 +1,6 @@
 /**
  * 插件装载测试：用假的 Cordis ctx 跑 `apply()`，检查
- *  - 11 个 agent 工具都通过 defineTool 校验并注册
+ *  - 13 个 agent 工具都通过 defineTool 校验并注册
  *  - shells() 追加主机启动器，且会清理失效启动器
  *  - spawnTerminal 包装只接管 dsh-ssh* 进程，并把 output 换成 tee
  *  - 危险命令守卫在没有审批服务时 fail closed
@@ -72,6 +72,8 @@ describe('apply()', () => {
   it('注册全部 6 个工具', () => {
     const names = registered.map((tool) => tool.name).sort();
     assert.deepEqual(names, [
+      'remote_audit_export',
+      'remote_audit_read',
       'remote_close',
       'remote_download',
       'remote_exec',
