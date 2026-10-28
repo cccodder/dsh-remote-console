@@ -201,6 +201,17 @@ describe('设置页注册（客户端）', () => {
       ['nas'],
     );
     assert.deepEqual(revisions, [undefined], '不传 expectedRevision，由服务端用最新修订号');
+
+    // 每次尝试前都刷新快照：失败两次时会刷新两次（+ set 兜底前一次）
+    let refreshCalls = 0;
+    await saveHosts(
+      { mutate: async () => false },
+      ['nas'],
+      async () => {
+        refreshCalls += 1;
+      },
+    );
+    assert.ok(refreshCalls >= 2, `失败重试前应刷新快照，实际 ${refreshCalls} 次`);
   });
 
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {
