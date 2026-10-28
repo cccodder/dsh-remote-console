@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-The current `0.6.x` line is supported. `engines.dsh` in `package.json` pins the DeepSeek Harness
+The current `0.7.x` / `0.8.x` lines are supported. `engines.dsh` in `package.json` pins the DeepSeek Harness
 versions the plugin is verified against (`>=0.2.1-rc.2 <0.3.0-0`); newer DSH majors are not
 supported until a plugin release widens that range.
 
@@ -42,9 +42,13 @@ the remote host from an agent the user has already authorized to run commands th
 - **Closing revokes access.** Closing the terminal tab kills the process tree; closing the browser
   does it after the last window hold disappears (8s grace, a refresh cancels); a DSH crash drops
   the PTY and `ssh` exits on HUP.
-- **Logs are short-lived.** The per-session JSONL is deleted when the PTY ends; crash-left logs are
-  swept at startup. Known secret shapes are redacted, but plaintext secrets inside command
-  arguments can still appear during the session — prefer environment variables or `ssh-agent`.
+- **Logs are short-lived, the audit trail is not.** The per-session JSONL (which contains screen
+  output) is deleted when the PTY ends; crash-left logs are swept at startup. A separate audit trail
+  (`audit/audit.jsonl`, 0600) keeps agent actions across sessions — redacted command text, exit
+  codes, approval outcomes, transfer paths and sha256, forwards — never screen output and never the
+  text the user typed. `DSH_RC_AUDIT=off` disables writing it. Known secret shapes are redacted in
+  both, but plaintext secrets inside command arguments can still appear during the session — prefer
+  environment variables or `ssh-agent`.
 
 ## Known limitations
 
@@ -61,7 +65,7 @@ the remote host from an agent the user has already authorized to run commands th
 
 ## 支持范围
 
-当前 `0.6.x` 系列受支持。`package.json` 的 `engines.dsh` 声明了验证过的 DeepSeek Harness
+当前 `0.7.x` / `0.8.x` 系列受支持。`package.json` 的 `engines.dsh` 声明了验证过的 DeepSeek Harness
 范围（`>=0.2.1-rc.2 <0.3.0-0`）；DSH 大版本升级后，要在插件发版放宽范围前视为不支持。
 
 ## 报告安全问题
@@ -93,8 +97,11 @@ the remote host from an agent the user has already authorized to run commands th
   `DSH_RC_DANGER_GUARD=off` 是显式关闭，且会在会话日志里留审计记录。
 - **关窗即失能**：关终端标签立即杀进程树；关浏览器在最后一个窗口持有消失 8 秒后回收
   （刷新会取消）；DSH 崩溃时 PTY 消失，`ssh` 随 HUP 退出。
-- **日志短命**：会话结束即删除会话 JSONL；崩溃残留会在下次启动时清扫。常见密钥形态会脱敏，
-  但命令参数里的明文密钥在会话期间仍可能出现——敏感操作请用环境变量或 `ssh-agent`。
+- **会话日志短命，审计日志保留**：会话结束即删除含屏幕输出的会话 JSONL，崩溃残留会在下次启动
+  时清扫。审计日志（`audit/audit.jsonl`，0600）单独一条线，跨会话保留 agent 的动作——脱敏后的
+  命令文本、退出码、审批结果、传输路径与 sha256、端口转发——不含屏幕内容，也不含你手敲的字；
+  `DSH_RC_AUDIT=off` 可停止写入。两边都会对常见密钥形态脱敏，但命令参数里的明文密钥在会话期间
+  仍可能出现——敏感操作请用环境变量或 `ssh-agent`。
 
 ## 已知限制
 

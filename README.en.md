@@ -90,6 +90,8 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` for `ssh -N -L 127.0.0.1:...` tunnels, bound to loopback only |
 | `remote_screen(lines)` | Current screen as plain text (ANSI stripped) |
 | `remote_log(cursor)` | Incremental read of the unified JSONL log (human commands, agent commands, both outputs) |
+| `remote_audit_read(cursor?, tool?)` | Read the **cross-session** audit trail: commands and exit codes, approvals, transfers, forwards, session start/end (no screen content) |
+| `remote_audit_export(local_path, format?)` | Export the audit trail to a local `jsonl` / `csv` file (0600) for archiving or review |
 | `remote_close()` | Close the ssh master, clean up socket/rendezvous files, stop this console's tunnels |
 
 **Files and tunnels reuse the same authenticated connection**: `remote_upload` / `remote_download` /
@@ -166,10 +168,14 @@ If the index does not update or the version does not change after clicking updat
   `overwrite: true`. `remote_forward` listens on `127.0.0.1` only, so other machines on the LAN
   cannot reach it, and the tunnel stops when the terminal ends or `remote_close` runs. Writing
   sensitive paths (`~/.ssh`, `/etc`, sudoers, shell profiles) asks for approval first.
-- **Logs disappear**: the per-session JSONL is deleted when the PTY ends; logs left behind
-  by a DSH crash are swept on the next plugin start. Known secret shapes (Bearer tokens,
-  `sk-*`, `password=/token=/secret=`) are redacted, but plaintext secrets inside command
-  arguments can still appear during the session — prefer env vars or `ssh-agent`.
+- **Session logs disappear, the audit trail does not**: the per-session JSONL with screen output is
+  deleted when the PTY ends; logs left behind by a DSH crash are swept on the next plugin start. A
+  separate audit trail (`audit/audit.jsonl`) records agent actions only — redacted commands, exit
+  codes, approvals, transfers, forwards, session start/end — survives sessions, can be disabled with
+  `DSH_RC_AUDIT=off`, and is read/exported with `remote_audit_read` / `remote_audit_export`. Known
+  secret shapes (Bearer tokens, `sk-*`, `password=/token=/secret=`) are redacted in both, but
+  plaintext secrets inside command arguments can still appear during the session — prefer env vars
+  or `ssh-agent`.
 - **Closing means revoking**: closing the terminal tab kills the process tree immediately;
   closing the browser kills it 8 s after the last window hold disappears (a refresh
   reconnects and cancels); if DSH crashes, the PTY master disappears and `ssh` exits on HUP.
@@ -186,6 +192,7 @@ policy (supported versions, what the plugin promises, known limitations) is in [
 | `DSH_REMOTE_CONSOLE_DIR` | `$DSH_HOME/remote-console` | Data dir (logs/sessions/socks/bin) |
 | `DSH_SSH_CONFIG` | `~/.ssh/config` | Host alias source |
 | `DSH_RC_DANGER_GUARD` | `approve` | `off` disables the approval gate (still audited) |
+| `DSH_RC_AUDIT` | `on` | `off` stops writing the audit trail (reading/exporting existing records still works) |
 | `DSH_RC_DRYRUN` | `0` | Wrapper dry-run: print the ssh command without running it |
 | `DSH_RC_NO_CLEAR` | `0` | `1` disables the automatic screen clear |
 | `DSH_RC_SELFTEST` | `0` | Run the built-in self test once at startup |
@@ -428,7 +435,11 @@ skipped when no `ssh`/`sshd` is available, so `npm test` passes on both kinds of
 - `hosts.tsv`: manually added hosts (host/user/port)
 - `sessions/`: `terminal ↔ socket` rendezvous (removed when the process exits)
 - `socks/`: ControlMaster sockets
-- `logs/`: session JSONL (deleted when the session ends)
+- `logs/`: session JSONL with screen output (deleted when the session ends)
+- `audit/audit.jsonl`: **cross-session** audit trail — agent actions only: redacted command text, exit
+  codes, approval outcomes, transfer paths and sha256, port forwards, session start/end. No screen output
+  and none of the text the user typed. Rotates at 8 MB, keeps 5 files, mode 0600; `DSH_RC_AUDIT=off`
+  stops writing. Read it with `remote_audit_read`, export with `remote_audit_export`.
 - `plugin.log`: plugin diagnostics (no credentials)
 - `wrapper.log`: wrapper diagnostics (e.g. ssh config fallback; written only when triggered)
 - `selftest.log`: built-in self-test result when `DSH_RC_SELFTEST=1`
