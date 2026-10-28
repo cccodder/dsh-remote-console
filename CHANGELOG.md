@@ -8,6 +8,31 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-28
+
+主机列表「找不到入口」修正：设置页在两个位置出现，并且不依赖设置页也能管理主机。
+
+### Added
+
+- `remote_host_add` / `remote_host_list` / `remote_host_remove`：直接读写 `hosts.tsv`
+  （插件数据目录，0600），没有设置页、没有终端也能加/删/查看主机；`remote_host_list` 会标出
+  每个主机来自 ssh 配置、设置页还是 hosts.tsv。
+- 设置页同时注册到 `plugins.bundle.config`（插件包详情页顶部的配置区）和
+  `plugins.row.config`（「部件」里那一行的配置按钮），不用再猜入口在哪。
+- 侧栏 SSH 面板底部加「主机：插件页配置」提示。
+
+### Changed
+
+- README 主机管理章节重写：写清两条精确路径（插件 → 包卡片 → 主机列表；或行「部件」→ 配置），
+  以及「让 agent 添加」的替代方式与两者存储位置的区别（`config.hosts` vs `hosts.tsv`）。
+
+### Fixed
+
+- **设置页完全不出现的根因**：客户端插件可能先于 DSH 设置服务加载，之前用一次性
+  `ctx.get('configForms')` 判断，拿到 `undefined` 就永久跳过了注册。改为 `ctx.inject(['configForms'], …)`
+  等服务出现后再注册，加载顺序不再影响设置页。
+- 主机写法的端口范围校验：`host:99999` 这类非法端口会被拒绝，不再写进 hosts.tsv。
+
 ## [0.10.0] - 2026-10-28
 
 Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 回退通道。
@@ -279,7 +304,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.7.1...v0.8.0

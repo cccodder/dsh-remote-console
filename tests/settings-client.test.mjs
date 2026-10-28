@@ -82,8 +82,15 @@ function makeContext({ withConfigForms = true } = {}) {
         },
       }
     : undefined;
+  const injected = [];
   const ctx = {
     get: (name) => (name === 'configForms' ? configForms : undefined),
+    // cordis 的可选依赖：服务可用时回调；不可用时不回调（测试里用它模拟加载顺序）
+    inject(deps, callback) {
+      injected.push([...deps]);
+      if (configForms !== undefined && deps.includes('configForms')) callback(ctx);
+      return () => {};
+    },
     effect: (factory) => {
       const disposer = factory();
       effects.push(disposer);
@@ -99,29 +106,38 @@ function makeContext({ withConfigForms = true } = {}) {
       selectShell: () => {},
     },
   };
-  return { ctx, registrations, effects, whileServed: () => whileServedCalls };
+  return { ctx, registrations, effects, injected, whileServed: () => whileServedCalls };
 }
 
 describe('设置页注册（客户端）', () => {
   it('有 configForms 时注册 plugins.row.config 页面，key 为 包名#行 id', () => {
     const client = loadClient();
-    const { ctx, registrations, whileServed } = makeContext();
+    const { ctx, registrations, whileServed, injected } = makeContext();
     client.apply(ctx);
     const page = registrations.find((entry) => entry.options.name === 'plugins.row.config');
     assert.ok(page, '应注册 plugins.row.config');
     assert.equal(page.options.key, 'dsh-remote-console#dsh-remote-console');
     assert.equal(page.options.order, 60);
     assert.equal(typeof page.component, 'function');
+
+    // 包详情页顶部也挂一份，用户更容易找到
+    const bundle = registrations.find((entry) => entry.options.name === 'plugins.bundle.config');
+    assert.ok(bundle, '应注册 plugins.bundle.config');
+    assert.equal(bundle.options.key, 'dsh-remote-console');
+    assert.equal(typeof bundle.component, 'function');
     assert.equal(whileServed(), 1);
+    assert.deepEqual(injected, [['configForms']], '应该通过 ctx.inject 等待设置服务');
     const props = page.options.inject();
     assert.equal(typeof props.form.mutate, 'function');
   });
 
   it('没有 configForms 的部署不注册也不报错', () => {
     const client = loadClient();
-    const { ctx, registrations } = makeContext({ withConfigForms: false });
+    const { ctx, registrations, injected } = makeContext({ withConfigForms: false });
     assert.doesNotThrow(() => client.apply(ctx));
     assert.equal(registrations.filter((entry) => entry.options.name === 'plugins.row.config').length, 0);
+    // 仍然会声明可选依赖，只是服务不出现时回调不执行
+    assert.deepEqual(injected, [['configForms']]);
   });
 
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {

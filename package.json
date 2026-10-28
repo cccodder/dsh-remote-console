@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-console",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "A right-sidebar SSH console for DeepSeek Harness where you and your agent share the same terminal and a unified activity log.",
   "type": "module",
   "main": "lib/index.js",
