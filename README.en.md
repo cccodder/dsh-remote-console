@@ -83,8 +83,8 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_status` | Console, host, socket, state, last screen lines |
 | `remote_run(command)` | Write into the same PTY (visible in the window), return output + real exit code (the PTY merges stderr into it) |
 | `remote_exec(command, cwd?)` | Out-of-band execution over the ControlMaster socket: native stdout/stderr/exit code, no terminal noise |
-| `remote_upload(local_path, remote_path, overwrite?)` | Local → remote: streamed, sha256 verified on both sides, no overwrite by default, 256 MB per file |
-| `remote_download(remote_path, local_path, overwrite?)` | Remote → local: streamed, sha256 verified, no local overwrite by default, 256 MB |
+| `remote_upload(local_path, remote_path, overwrite?)` | Local → remote: streamed, sha256 verified on both sides, no overwrite by default, 256 MB per file by default (1–2048 MB in the settings page) |
+| `remote_download(remote_path, local_path, overwrite?)` | Remote → local: streamed, sha256 verified, no local overwrite by default, same limit |
 | `remote_read_file(path, max_bytes?)` | Read remote text (128 KB default, 256 KB max); binary files are refused and redirected to `remote_download` |
 | `remote_write_file(path, content, append?)` | Write ≤256 KB of UTF-8 text; content goes over stdin, never through the terminal window |
 | `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` for `ssh -N -L 127.0.0.1:...` tunnels, bound to loopback only |
@@ -128,8 +128,15 @@ Hosts in the panel come from three places: `~/.ssh/config`, the plugin settings 
 4. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh config,
    `user@host:port` targets skip the menu and connect directly.
 
+The same page has a **"Per-file transfer limit (MB)"** field: 256 by default, 1–2048 allowed. It caps
+`remote_upload` / `remote_download` and takes effect immediately after saving (no plugin reload).
+Platforms without ControlMaster fall back to the PTY channel, whose hard cap stays at 1 MiB
+regardless of this setting. Headless deployments can set the same value with
+`DSH_RC_MAX_TRANSFER_MB` (the settings page value wins).
+
 > If neither the section nor the "configure" button appears, the deployment does not provide DSH's
-> settings service (`ctx.configForms`). Use option 2 — the terminal is unaffected.
+> settings service (`ctx.configForms`). Use option 2 — the terminal is unaffected; the transfer limit
+> stays at the default 256 MB (or use `DSH_RC_MAX_TRANSFER_MB`).
 
 **Option 2: ask the agent (no settings page needed)**
 
@@ -202,7 +209,10 @@ If the index does not update or the version does not change after clicking updat
 - **Transfers are verified, tunnels are loopback-only**: `remote_upload` / `remote_download`
   stream the bytes and compute sha256 on both sides (reported as `verified: unavailable` if the
   remote has neither `sha256sum` nor `shasum`); existing files are not overwritten unless you pass
-  `overwrite: true`. `remote_forward` listens on `127.0.0.1` only, so other machines on the LAN
+  `overwrite: true`. Per-file limit is 256 MB by default and configurable in the settings page
+  (1–2048 MB, same as the `DSH_RC_MAX_TRANSFER_MB` environment variable); over-limit transfers fail
+  with a message that says where to change it.
+  `remote_forward` listens on `127.0.0.1` only, so other machines on the LAN
   cannot reach it, and the tunnel stops when the terminal ends or `remote_close` runs. Writing
   sensitive paths (`~/.ssh`, `/etc`, sudoers, shell profiles) asks for approval first.
 - **Session logs disappear, the audit trail does not**: the per-session JSONL with screen output is
@@ -425,7 +435,7 @@ the agent tools automatically fall back to the PTY channel when no socket exists
 - Tools: `remote_run`, `remote_exec`, `remote_read_file`, `remote_write_file`,
   `remote_upload`, `remote_download` all work, with differences — commands and data pass through
   the user's window, `remote_exec` merges stdout/stderr, and transfers are capped at **1 MiB**
-  (base64 chunks through the terminal).
+  (base64 chunks through the terminal), regardless of the configurable per-file limit.
 - Not available: `remote_forward` (port forwarding needs one authenticated reusable connection).
   `remote_audit_*` is unaffected.
 - Launchers are `node dsh-ssh.mjs --host/--target ...` and use the Node that ships with DSH

@@ -253,4 +253,64 @@ describe('设置页注册（客户端）', () => {
     const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'package.json'), 'utf8'));
     assert.equal(client.__testing?.PLUGIN_VERSION, pkg.version);
   });
+
+  it('单文件传输上限：默认 256、夹在 1–2048，且与宿主侧常量一致', async () => {
+    const client = loadClient();
+    const { transferLimitMBFromValue, DEFAULT_MAX_TRANSFER_MB, MIN_MAX_TRANSFER_MB, MAX_MAX_TRANSFER_MB } =
+      client.__testing;
+    const host = (await import('../lib/index.js')).__testing;
+
+    assert.equal(DEFAULT_MAX_TRANSFER_MB, host.DEFAULT_MAX_TRANSFER_MB);
+    assert.equal(MIN_MAX_TRANSFER_MB, host.MIN_MAX_TRANSFER_MB);
+    assert.equal(MAX_MAX_TRANSFER_MB, host.MAX_MAX_TRANSFER_MB);
+    assert.equal(transferLimitMBFromValue(undefined), 256);
+    assert.equal(transferLimitMBFromValue('512'), 512);
+    assert.equal(transferLimitMBFromValue(12.4), 12);
+    assert.equal(transferLimitMBFromValue(9999), 2048);
+    assert.equal(transferLimitMBFromValue(0), 1);
+    assert.equal(transferLimitMBFromValue('abc'), 256);
+  });
+
+  it('保存主机时一起写单文件传输上限（mutate 一条批次、set 兜底逐字段）', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+
+    const batches = [];
+    const form = {
+      mutate: async (ops) => {
+        batches.push(ops);
+        return true;
+      },
+    };
+    assert.deepEqual(await saveHosts(form, ['nas'], undefined, 512), {
+      ok: true,
+      attempts: 1,
+      mode: 'mutate',
+    });
+    assert.deepEqual(batches, [
+      [
+        { op: 'set', path: ['hosts'], value: 'nas' },
+        { op: 'set', path: ['maxTransferMB'], value: 512 },
+      ],
+    ]);
+
+    // 不传上限时保持旧行为：只写 hosts（老调用方/测试不受影响）
+    batches.length = 0;
+    await saveHosts(form, ['nas']);
+    assert.deepEqual(batches, [[{ op: 'set', path: ['hosts'], value: 'nas' }]]);
+
+    const sets = [];
+    const setForm = {
+      mutate: async () => false,
+      set: async (field, value) => {
+        sets.push([field, value]);
+        return true;
+      },
+    };
+    assert.deepEqual(await saveHosts(setForm, ['nas'], undefined, 64), { ok: true, attempts: 3, mode: 'set' });
+    assert.deepEqual(sets, [
+      ['hosts', 'nas'],
+      ['maxTransferMB', 64],
+    ]);
+  });
 });

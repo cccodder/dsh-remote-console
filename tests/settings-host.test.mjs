@@ -42,6 +42,15 @@ describe('Config schema', () => {
     assert.equal(read(Config({}).hosts), '');
     assert.equal(read(Config({ hosts: 'nas\nops@1.2.3.4:22' }).hosts), 'nas\nops@1.2.3.4:22');
   });
+
+  it('maxTransferMB 默认 256，且不在 schema 层拒绝越界值（避免坏配置让插件加载失败）', () => {
+    assert.equal(Config({}).maxTransferMB, 256);
+    assert.equal(Config({ maxTransferMB: 8 }).maxTransferMB, 8);
+    // 越界值能不能落盘由设置页拦；真落到配置里也只应夹取，不应抛错
+    assert.doesNotThrow(() => Config({ maxTransferMB: 5000 }));
+    assert.doesNotThrow(() => Config({ maxTransferMB: 0 }));
+    assert.equal(__testing.resolveMaxTransferMB(Config({ maxTransferMB: 5000 }).maxTransferMB), 2048);
+  });
 });
 
 describe('configHostLines', () => {

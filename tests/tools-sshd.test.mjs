@@ -159,6 +159,37 @@ describe('工具层 + 审计（真实 sshd）', { skip: MISSING.length > 0 ? `no
     );
   });
 
+  it('单文件传输上限可配：默认 256 MB，调到 1 MB 后按新上限拒绝', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dsh-rc-tools-limit-'));
+    const localPath = join(dir, 'big.bin');
+    writeFileSync(localPath, Buffer.alloc(1024 * 1024 + 1));
+
+    const shared = plugin.__testing.state();
+    const original = shared.config;
+    try {
+      shared.config = { ...original, maxTransferMB: 1 };
+      await assert.rejects(
+        () => registered.get('remote_upload').execute({ local_path: localPath, remote_path: `${dir}/uploaded-big.bin` }, exec),
+        (error) => {
+          assert.match(String(error.message), /FILE_TOO_LARGE/u);
+          assert.match(String(error.message), /1 MB/u);
+          // 报错要告诉用户去哪改，否则只看到一个数字
+          assert.match(String(error.message), /maxTransferMB|DSH_RC_MAX_TRANSFER_MB/u);
+          return true;
+        },
+      );
+    } finally {
+      shared.config = original;
+    }
+
+    // 恢复默认上限后同一个文件可以传（上限逻辑没有把状态写死）
+    const uploaded = await registered.get('remote_upload').execute(
+      { local_path: localPath, remote_path: `${dir}/uploaded-big.bin` },
+      exec,
+    );
+    assert.match(uploaded.text, /verified: yes/u);
+  });
+
   it('remote_read_file / remote_write_file 往返一致', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-rc-tools-text-'));
     const remotePath = `${dir}/note.txt`;

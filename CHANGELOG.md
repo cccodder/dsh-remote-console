@@ -8,6 +8,14 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Added
+
+- **单文件传输上限可配**：`remote_upload` / `remote_download` 的上限从写死的 256 MB 变成配置项。
+  设置页「主机列表」同一个卡片里新增「单文件传输上限（MB）」输入框，范围 1–2048，保存后立即
+  生效（不用重载插件）；无界面部署可用 `DSH_RC_MAX_TRANSFER_MB` 环境变量，设置页里的值优先。
+  配置写错时退回默认 256 MB，不会把上限变成「无限制」或 0。超限报错会直接说明去哪改。
+  没有 ControlMaster 的 PTY 通道仍是 1 MiB 硬上限（终端分块传输的物理限制，与本设置取较小值）。
+
 ### Fixed
 
 - **插件重载后设置页保存必失败**：设置页不再 `dispose()` 宿主 `configForms` 里缓存的共享 form。
