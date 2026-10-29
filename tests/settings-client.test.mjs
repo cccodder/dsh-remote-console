@@ -129,7 +129,11 @@ describe('设置页注册（客户端）', () => {
     assert.equal(bundle.options.key, 'dsh-remote-console');
     assert.equal(typeof bundle.component, 'function');
     assert.equal(whileServed(), 1);
-    assert.deepEqual(injected, [['remote'], ['configForms']], '应该通过 ctx.inject 等待 remote / 设置服务');
+    assert.deepEqual(
+      injected,
+      [['remote', 'remote.settings'], ['remote', 'remote.pluginManager'], ['configForms']],
+      '应该分别等待 remote.settings / remote.pluginManager 命名空间服务，而不是只等 remote',
+    );
     const props = page.options.inject();
     assert.equal(typeof props.form.mutate, 'function');
   });
@@ -160,7 +164,7 @@ describe('设置页注册（客户端）', () => {
     assert.doesNotThrow(() => client.apply(ctx));
     assert.equal(registrations.filter((entry) => entry.options.name === 'plugins.row.config').length, 0);
     // 仍然会声明可选依赖，只是服务不出现时回调不执行
-    assert.deepEqual(injected, [['remote'], ['configForms']]);
+    assert.deepEqual(injected, [['remote', 'remote.settings'], ['remote', 'remote.pluginManager'], ['configForms']]);
   });
 
   it('主机行解析：保留注释、去空行、拼接可逆', () => {
