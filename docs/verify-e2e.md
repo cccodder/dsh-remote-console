@@ -101,6 +101,27 @@ dsh plugin --profile verify remove dsh-remote-console
 rm -rf ~/.dsh-verify
 ```
 
+## 7. 一键热更新（设置页「更新到 vX.Y.Z」）怎么判
+
+只对**同一安装路径**的升级判断（npm → npm）。判定三件事：
+
+- 刷新后设置页显示 `插件版本 v<新版本>`、`已是最新版本`，没有「更新到」按钮；
+- 服务器下发的组合 bundle 里是 `const VERSION = '<新版本>';`（可以 `curl` 页面里 `/plugins/??…` 的那条 URL 再看）；
+- 宿主进程 pid 没变（更新是 HMR 热应用，不是重启）。
+
+**0.10.5 真机记录（2026-10-29，DSH 0.2.1-rc.3，npm 装的 0.10.4 → 0.10.5）：通过。**
+
+- 点更新 → 页面自动刷新，**全程没重启**；刷新后 v0.10.5、组合 bundle 里 `VERSION = '0.10.5'`、宿主 pid 不变。
+- profile 依赖 `"0.10.5"`、`node_modules` 里是 0.10.5、realpath 仍是同一个 `profiles/<profile>/node_modules/dsh-remote-console`。
+- 更新后改上限保存成功、Console 干净。
+
+**例外：换成 npm 来源的升级需要重启一次。** 如果当前版本是本地目录 / `link:` 装的，更新会把来源换成 npm，
+解析路径也变了；DSH 的 `dsh-client-modules` 按 `baseUrl + 包名` 缓存客户端条目（`resolveMeta` 同样按这个键缓存），
+路径变了也不会重建，浏览器会继续跑旧 bundle。0.10.5 起页面会自检并在这种情况下提示「重启 DSH 一次生效」，
+不再显示假成功。这段提示本身的真机验证要等下一次 `0.10.5 → 0.10.6` 的更新。
+
+**注意**：版本检查有 6 小时缓存，刚发版时设置页可能还显示「已是最新版本」，先点「重新检查」。
+
 ## 已知无法在无 ssh 环境验证的点
 
 - 真实 `ssh` 的认证交互（密码、主机指纹、key passphrase）。
