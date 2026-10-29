@@ -129,7 +129,11 @@ describe('设置页注册（客户端）', () => {
     assert.equal(bundle.options.key, 'dsh-remote-console');
     assert.equal(typeof bundle.component, 'function');
     assert.equal(whileServed(), 1);
-    assert.deepEqual(injected, [['configForms']], '应该通过 ctx.inject 等待设置服务');
+    assert.deepEqual(
+      injected,
+      [['remote', 'remote.settings'], ['remote', 'remote.pluginManager'], ['configForms']],
+      '应该分别等待 remote.settings / remote.pluginManager 命名空间服务，而不是只等 remote',
+    );
     const props = page.options.inject();
     assert.equal(typeof props.form.mutate, 'function');
   });
@@ -160,7 +164,7 @@ describe('设置页注册（客户端）', () => {
     assert.doesNotThrow(() => client.apply(ctx));
     assert.equal(registrations.filter((entry) => entry.options.name === 'plugins.row.config').length, 0);
     // 仍然会声明可选依赖，只是服务不出现时回调不执行
-    assert.deepEqual(injected, [['configForms']]);
+    assert.deepEqual(injected, [['remote', 'remote.settings'], ['remote', 'remote.pluginManager'], ['configForms']]);
   });
 
   it('主机行解析：保留注释、去空行、拼接可逆', () => {
@@ -195,14 +199,14 @@ describe('设置页注册（客户端）', () => {
         return false;
       },
     };
-    // mutate 两次都失败、没有 set 兜底时，返回明确失败，并且诊断里必须带原因（不能是空的）
+    // mutate 三次都失败、没有 set 兜底时，返回明确失败，并且诊断里必须带原因（不能是空的）
     assert.deepEqual(await saveHosts(alwaysFails, ['nas']), {
       ok: false,
-      attempts: 2,
+      attempts: 3,
       mode: 'mutate',
       error: 'mutate 返回 false（DSH 没有接受写入）',
     });
-    assert.equal(fails, 2);
+    assert.equal(fails, 3);
 
     // 有 set 时用它兜底（单字段写入走另一条路径）
     let setCalls = 0;
@@ -248,6 +252,73 @@ describe('设置页注册（客户端）', () => {
     assert.ok(refreshCalls >= 2, `失败重试前应刷新快照，实际 ${refreshCalls} 次`);
   });
 
+  it('一键热更新：卸载 → 安装新版本，HMR 热应用返回 applied', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const calls = [];
+    const manager = {
+      removeBundle: async (name) => {
+        calls.push(['remove', name]);
+        return { changed: true, application: 'applied', stage: 'remove', target: name };
+      },
+      installBundle: async (spec, options) => {
+        calls.push(['install', spec, options]);
+        return { changed: true, application: 'applied', stage: 'install', target: spec };
+      },
+    };
+    assert.deepEqual(await runHotUpdate(manager, 'v0.10.4', '0.10.3'), {
+      ok: true,
+      application: 'applied',
+    });
+    assert.deepEqual(calls, [
+      ['remove', 'dsh-remote-console'],
+      ['install', 'dsh-remote-console@v0.10.4', { saveExact: true }],
+    ]);
+  });
+
+  it('一键热更新：需要重启时如实上报 restart-required', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const manager = {
+      removeBundle: async () => ({ application: 'applied' }),
+      installBundle: async () => ({ application: 'restart-required', restartReason: 'bundle-structure' }),
+    };
+    const result = await runHotUpdate(manager, '0.10.4', '0.10.3');
+    assert.equal(result.ok, true);
+    assert.equal(result.application, 'restart-required');
+    assert.equal(result.restartReason, 'bundle-structure');
+  });
+
+  it('一键热更新：新版本装失败时回滚到当前版本', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const installed = [];
+    const manager = {
+      removeBundle: async () => ({ application: 'applied' }),
+      installBundle: async (spec) => {
+        installed.push(spec);
+        if (spec.endsWith('@0.10.4')) return { application: 'failed', error: { message: 'registry 404' } };
+        return { application: 'applied' };
+      },
+    };
+    const result = await runHotUpdate(manager, '0.10.4', '0.10.3');
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'INSTALL_FAILED');
+    assert.match(String(result.error), /registry 404/u);
+    assert.equal(result.rollback, 'ok');
+    assert.deepEqual(installed, ['dsh-remote-console@0.10.4', 'dsh-remote-console@0.10.3']);
+  });
+
+  it('一键热更新：没有插件管理服务时明确拒绝，不瞎卸载', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    let called = false;
+    const result = await runHotUpdate(undefined, '0.10.4', '0.10.3');
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'NO_PLUGIN_MANAGER');
+    assert.equal(called, false);
+  });
+
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {
     const client = loadClient();
     const pkg = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'package.json'), 'utf8'));
@@ -269,6 +340,87 @@ describe('设置页注册（客户端）', () => {
     assert.equal(transferLimitMBFromValue(9999), 2048);
     assert.equal(transferLimitMBFromValue(0), 1);
     assert.equal(transferLimitMBFromValue('abc'), 256);
+  });
+
+  it('有 settings 服务时直连写入：每轮现读 revision，冲突自动重试', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+    const revisions = [];
+    let describedCount = 0;
+    let attempt = 0;
+    const settings = {
+      describe: async () => {
+        describedCount += 1;
+        return { ok: true, value: { namespaces: [{ ns: 'dsh-remote-console', revision: 9 + describedCount }] } };
+      },
+      mutate: async (ns, ops, revision) => {
+        attempt += 1;
+        revisions.push([ns, revision]);
+        assert.deepEqual(ops, [
+          { op: 'set', path: ['hosts'], value: 'nas' },
+          { op: 'set', path: ['maxTransferMB'], value: 512 },
+        ]);
+        if (attempt === 1) {
+          return {
+            ok: false,
+            error: { message: 'settings namespace "dsh-remote-console" changed since it was read (expected revision 10, now 11)' },
+          };
+        }
+        return { ok: true, value: { revision: 12 } };
+      },
+    };
+    const result = await saveHosts({ mutate: async () => false }, ['nas'], undefined, 512, { settings: () => settings });
+    assert.deepEqual(result, { ok: true, attempts: 2, mode: 'settings' });
+    assert.deepEqual(revisions, [
+      ['dsh-remote-console', 10],
+      ['dsh-remote-console', 11],
+    ]);
+  });
+
+  it('settings 服务的非冲突错误不重试，并返回错误原文（用于界面诊断）', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+    let calls = 0;
+    const settings = {
+      describe: async () => ({ ok: true, value: { namespaces: [{ ns: 'dsh-remote-console', revision: 3 }] } }),
+      mutate: async () => {
+        calls += 1;
+        return { ok: false, error: { message: 'Config field "maxTransferMB" is not volatile' } };
+      },
+    };
+    const result = await saveHosts({ mutate: async () => false }, ['nas'], undefined, 512, { settings: () => settings });
+    assert.equal(result.ok, false);
+    assert.equal(result.mode, 'settings');
+    assert.equal(calls, 1, '非冲突错误重试也不会变，只应调用一次');
+    assert.match(String(result.error), /not volatile/u);
+  });
+
+  it('没有 settings 服务时把 io.revision 现读的修订号传给写入', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+    const seen = [];
+    const form = {
+      mutate: async (ops, revision) => {
+        seen.push(revision);
+        return true;
+      },
+    };
+    const result = await saveHosts(form, ['nas'], undefined, undefined, { revision: () => 7 });
+    assert.deepEqual(result, { ok: true, attempts: 1, mode: 'mutate' });
+    assert.deepEqual(seen, [7]);
+  });
+
+  it('整体写入失败时退一步只写主机，并把「上限没写进去」标成 warning 而不是失败', async () => {
+    const client = loadClient();
+    const { saveHosts } = client.__testing;
+    const form = {
+      mutate: async () => false,
+      set: async (field) => field === 'hosts',
+    };
+    const result = await saveHosts(form, ['nas'], undefined, 512);
+    assert.equal(result.ok, true);
+    assert.equal(result.mode, 'set');
+    assert.match(String(result.warning), /上限没有写进去/u);
   });
 
   it('保存主机时一起写单文件传输上限（mutate 一条批次、set 兜底逐字段）', async () => {

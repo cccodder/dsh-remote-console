@@ -137,8 +137,8 @@ sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/�
 3. 每行一个远端：`~/.ssh/config` 里的别名，或直接写 `user@host[:port]`；`#` 开头是注释。例如：
 
    ```
-   nas
-   ops@10.0.0.5:22
+   web-01
+   ops@203.0.113.10:22
    ```
 
 4. 点「保存」。宿主侧会重新生成侧栏「SSH 远程」里的启动器：别名走 ssh 配置，
@@ -172,7 +172,20 @@ sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/�
 （如 `v0.6.5`）。客户端会查一次 GitHub 最新 Release（结果缓存 6 小时，离线/限流/CORS
 失败都静默），发现更高版本时在同一位置显示「有新版本 vX.Y.Z」，点开是 GitHub Release 页。
 
-**方式一：插件市场（有真正的「更新」入口）**
+**方式一：设置页一键热更新（推荐）**
+
+侧栏「插件」→ `dsh-remote-console` → 配置页（或插件行上的「配置」）。页面打开时会自动检查
+最新版本（GitHub Release，缓存 6 小时，旁边有「重新检查」）。发现新版本、且 npm 上已经同步后，
+点「更新到 vX.Y.Z」：
+
+1. 通过 DSH 插件管理器卸载当前版本、再安装新版本；
+2. DSH 的 HMR 把改动热应用到运行中的进程——**不需要重启**；
+3. 安装完成后页面自动刷新，加载新的客户端 bundle，版本号立即变成新版本。
+
+安装失败会自动装回当前版本并显示错误原文；如果这次改动被 DSH 判定必须重启，页面会明确提示。
+没有 `remote.pluginManager` 的老部署会禁用按钮，退回下面的方式二/三。
+
+**方式二：插件市场**
 
 插件已发布到 npm，并提供 format 1 的市场索引：
 
@@ -187,7 +200,7 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 > 索引源只接受 JSON 的 URL。GitHub Pages 不通时换 jsDelivr 或 raw 原链，或把
 > `market/index.json` 放到你自己的静态服务器上——内容一样，DSH 不关心它托管在哪。
 
-**方式二：手动重装（没有启用插件市场时）**
+**方式三：手动重装（没有启用插件市场时，或跨大版本排查时）**
 
 1. 侧栏「插件」→「已安装插件」→ `dsh-remote-console` → **卸载**（会二次确认）。
 2. 「添加插件」→ 输入 `dsh-remote-console`（npm）或 `github:cccodder/dsh-remote-console`
@@ -197,8 +210,9 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 
 主机列表、`hosts.tsv` 这些数据在 `~/.dsh/remote-console/`，不在插件包里，卸载重装不会丢。
 
-**关于一键更新**：DSH 插件管理器只给官方按需插件提供「更新」按钮；第三方插件想要同样的
-体验，就得通过插件市场索引（本仓库的 `market/index.json`）或发布到 npm 让方负责分发。
+**关于一键更新**：DSH 自己的插件管理器只给官方按需插件提供「更新」按钮，所以本插件把
+「卸载 → 安装」做成配置页上的按钮（0.10.4 起），并在 HMR 下热应用。插件市场索引
+（本仓库的 `market/index.json`）仍然适合首次安装或没有配置页的部署。
 索引不更新、点了更新版本没变的排查步骤见[故障排查](#故障排查)第 6 条。
 
 ## 安全模型
