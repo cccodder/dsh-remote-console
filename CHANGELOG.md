@@ -26,6 +26,10 @@ extension points, so a DSH minor release may need a plugin release.
   冲突才自动重试，其它错误把原始 `error.message` 显示在页面上；没有该服务时退回 configForms
   并显式传现读 revision。整体写入失败但主机列表写入成功时，界面标成「主机已保存、上限没写进去」
   的 warning，而不是把两者都说成失败。
+- **设置页的直连写入 / 一键更新改为等待具体命名空间服务**：`remote.settings` 与
+  `remote.pluginManager` 在 cordis 里是各自独立的服务；之前只等 `remote`，命名空间还没挂上时
+  回调就跑了，错误可见性和更新按钮会静默退化。现在分别
+  `inject(['remote', 'remote.settings'])` 与 `inject(['remote', 'remote.pluginManager'])`。
 
 
 ## [0.10.3] - 2026-10-28
