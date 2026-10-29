@@ -8,6 +8,13 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **更新后如实提示是否需要重启**：宿主 HMR 能就地重载插件，但客户端 bundle 图按启动时解析到的路径缓存
+  （`dsh-client-modules` 的 `sourceKey = baseUrl + 包名`，路径变了也不重建）。升级如果换了安装来源
+  （本地目录 / `link:` → npm），浏览器会继续跑旧 bundle。现在点更新时记下目标版本，刷新后自检：真的
+  换掉了才算成功；还是旧版本就提示「重启 DSH 一次生效」，并且不再重复显示「更新到」按钮。
+
 ## [0.10.4] - 2026-10-29
 
 ### Added
