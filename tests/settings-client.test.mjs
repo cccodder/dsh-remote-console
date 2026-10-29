@@ -466,3 +466,76 @@ describe('设置页注册（客户端）', () => {
     ]);
   });
 });
+
+describe('更新后自检（客户端）', () => {
+  /** 浏览器存储的假实现；测完要删掉，避免影响其它用例。 */
+  function withFakeStorage(run) {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, String(value)),
+      removeItem: (key) => store.delete(key),
+    };
+    try {
+      return run(store);
+    } finally {
+      delete globalThis.localStorage;
+    }
+  }
+
+  it('点更新前记下目标版本，读回来一致，清掉后为空', () => {
+    withFakeStorage((store) => {
+      const client = loadClient();
+      const { writePendingUpdate, readPendingUpdate, clearPendingUpdate } = client.__testing;
+      assert.equal(readPendingUpdate(), undefined);
+      writePendingUpdate('v0.10.5');
+      const pending = readPendingUpdate();
+      assert.equal(pending.version, 'v0.10.5');
+      assert.ok(Number.isFinite(pending.at));
+      assert.equal(store.size, 1);
+      clearPendingUpdate();
+      assert.equal(readPendingUpdate(), undefined);
+      assert.equal(store.size, 0);
+    });
+  });
+
+  it('没有 localStorage 时不抛错（浏览器禁用存储）', () => {
+    const client = loadClient();
+    const { writePendingUpdate, readPendingUpdate, clearPendingUpdate } = client.__testing;
+    assert.doesNotThrow(() => writePendingUpdate('0.10.5'));
+    assert.doesNotThrow(() => clearPendingUpdate());
+    assert.equal(readPendingUpdate(), undefined);
+  });
+
+  it('自检结果：真的换掉了 / 还在跑旧 bundle / 过期标记', () => {
+    const client = loadClient();
+    const { pendingUpdateState } = client.__testing;
+    const now = Date.now();
+    assert.deepEqual(pendingUpdateState(undefined, '0.10.4', now), { status: 'none' });
+    // 刷新后加载到目标版本 → 热更真的生效
+    assert.deepEqual(pendingUpdateState({ version: 'v0.10.5', at: now - 1000 }, '0.10.5', now), {
+      status: 'applied',
+      version: 'v0.10.5',
+    });
+    // 刷新后还是旧版本 → 客户端 bundle 没热换，需要重启
+    assert.deepEqual(pendingUpdateState({ version: '0.10.5', at: now - 1000 }, '0.10.4', now), {
+      status: 'restart-required',
+      version: '0.10.5',
+    });
+    // 15 分钟后再打开设置页不再翻旧账
+    assert.deepEqual(pendingUpdateState({ version: '0.10.5', at: now - 16 * 60 * 1000 }, '0.10.4', now), {
+      status: 'stale',
+    });
+    // 坏数据/无法解析的版本号当没有标记
+    assert.deepEqual(pendingUpdateState({ version: 'latest', at: now }, '0.10.4', now), { status: 'none' });
+    assert.deepEqual(pendingUpdateState({ version: '0.10.5', at: 'x' }, '0.10.4', now), { status: 'stale' });
+  });
+
+  it('版本相等判断接受 v 前缀', () => {
+    const client = loadClient();
+    const { sameVersion } = client.__testing;
+    assert.equal(sameVersion('v0.10.5', '0.10.5'), true);
+    assert.equal(sameVersion('0.10.5', '0.10.4'), false);
+    assert.equal(sameVersion('latest', '0.10.5'), false);
+  });
+});
