@@ -185,6 +185,13 @@ A failed install rolls back to the current version and shows the original error.
 that this change needs a restart, the page says so. Older deployments without
 `remote.pluginManager` disable the button and fall back to options 2/3.
 
+> **When a restart is needed**: the Host half reloads in place through HMR, but the browser bundle
+> graph is built from the paths resolved at startup. If the current version was installed from a
+> local directory or a `link:` spec, updating switches the source to npm and the paths change, so
+> DSH does not rebuild that graph: the page says "installed vX, restart DSH once", and the version
+> changes after the restart. Upgrades between npm-installed versions keep the same paths and need
+> no restart.
+
 **Option 2 — plugin market**
 
 The plugin is published to npm with a format-1 market index:
