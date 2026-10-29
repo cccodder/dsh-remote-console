@@ -1,20 +1,62 @@
 # dsh-remote-console
 
+**DSH SSH 插件** · 右侧栏 SSH 远程终端 · 人和 agent 共用一个 PTY · 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）做的
+
 中文 | [English](https://github.com/cccodder/dsh-remote-console/blob/main/README.en.md)
 
 ![version](https://img.shields.io/github/v/release/cccodder/dsh-remote-console?label=version)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-4D6BFE)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-DeepSeek Harness（DSH）右侧栏的 SSH 远程终端：你和 AI agent 在**同一个 PTY** 里操作远端主机。
-你亲自完成 SSH 登录，agent 通过同一个终端执行命令，双方的操作都写进同一条可回看的日志。
+你 ssh 上去、输完密码，agent 只能在旁边等着——它看不见你的终端。这个插件把 agent 放进你正在看的那个终端：它敲的命令你看得见，你随时能接手，双方的操作都落在同一条日志里。
 
-它不重新实现终端：渲染、输入、窗口管理全部复用 DSH 自带的终端，插件只做三件事——
-往 shell 列表里加远端启动器、捕获这条 PTY 的字节流、给 agent 一组写进同一个终端的工具。
+**DSH 右侧栏的 SSH 远程终端，人和 agent 共用一个 PTY。** 不重新实现终端（渲染、输入、窗口都复用 DSH 自带），不改 DSH 源码，不碰、不存你的密码。
+
+### 30 秒上手
+
+```bash
+# CLI 管理的 profile（例如 web）
+dsh plugin --profile web add dsh-remote-console
+# 再把 "dsh-remote-console" 加进该 profile 的 dsh.profile.bundles，重启 DSH
+```
+
+- **插件市场一键装**：`发现 → 添加索引源` 粘贴 `https://cccodder.github.io/dsh-remote-console/market/index.json`
+- **Electron 桌面版**：App 内「插件管理器」搜 `dsh-remote-console`（或粘贴 `github:cccodder/dsh-remote-console`）
+- **0.10.4 起**：配置页自带「检查更新 / 更新到 vX.Y.Z」，走 DSH 插件管理器热应用，不用重启
+
+装好后：右侧栏「SSH 远程」→ 选主机 → 你自己输密码 → 让 agent 在同一个终端里干活。
+
+### 它不是什么
+
+| 你可能想要的 | 本插件的答案 |
+| --- | --- |
+| 远程开发环境（文件树、工作区镜像、VS Code Remote 那套） | 不是。给你一个真实的远端终端；大文件走 `remote_upload` / `remote_download` |
+| 让 agent 背着你在后台连一台机器跑命令 | 不是。它就在你盯着的终端里跑，看得见、可接手、有审计 |
+| 自己能渲染终端的新终端 | 不是。xterm 渲染、输入、窗口全部复用 DSH 自带终端 |
+| 打了 DSH 补丁才能用 | 不是。只包装公开的终端服务，DSH 升级不用重新打补丁 |
+
+### 能力一览
+
+| | |
+| --- | --- |
+| agent 工具 | 16 个：终端 6 · 文件 4 · 端口转发 1 · 审计 2 · 主机列表 3 |
+| 文件传输 | 流式传输 + 双侧 sha256；单文件默认 256 MB，设置页可调到 2048 MB |
+| 终端 | 复用 DSH 原生终端，人机共用 PTY；退出码由 shell 钩子（OSC）回传，不靠猜提示符 |
+| 审计 | 跨会话 JSONL：命令、退出码、审批结果、传输路径 + sha256、转发；写入前脱敏 |
+| 依赖 | 运行时 0 依赖；不改 DSH；Node ≥ 20 |
+| 测试 | 173 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
 
 ![右侧栏的 SSH 远程面板；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
+*右侧栏的 SSH 面板：主机列表、连接状态、人和 agent 共用的那条日志。示例主机名已打码。*
+
 ![agent 在同一个远端终端里执行命令；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
+
+*agent 在你正在看的终端里执行命令；它和你敲的东西都落在同一条日志里。*
+
+## 目录
+
+[它解决什么](#它解决什么) · [安装](#安装) · [用法](#用法) · [管理主机列表](#管理主机列表) · [更新](#更新) · [安全模型](#安全模型) · [环境变量](#环境变量) · [故障排查](#故障排查) · [兼容性与限制](#兼容性与限制) · [Windows](#windows实验性) · [性能基线](#性能基线loopback) · [开发与测试](#开发与测试) · [数据目录](#数据目录) · [许可](#许可)
 
 ## 它解决什么
 
