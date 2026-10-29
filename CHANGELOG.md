@@ -8,17 +8,6 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
-## [0.10.5] - 2026-10-29
-
-### Fixed
-
-- **更新后如实提示是否需要重启**：宿主 HMR 能就地重载插件，但客户端 bundle 图按启动时解析到的路径缓存
-  （`dsh-client-modules` 的 `sourceKey = baseUrl + 包名`，路径变了也不重建）。升级如果换了安装来源
-  （本地目录 / `link:` → npm），浏览器会继续跑旧 bundle。现在点更新时记下目标版本，刷新后自检：真的
-  换掉了才算成功；还是旧版本就提示「重启 DSH 一次生效」，并且不再重复显示「更新到」按钮。
-
-## [0.10.4] - 2026-10-29
-
 ### Added
 
 - **设置页一键热更新**：配置页打开时自动检查 GitHub 最新 Release（缓存 6 小时，可「重新检查」），
@@ -37,10 +26,7 @@ extension points, so a DSH minor release may need a plugin release.
   冲突才自动重试，其它错误把原始 `error.message` 显示在页面上；没有该服务时退回 configForms
   并显式传现读 revision。整体写入失败但主机列表写入成功时，界面标成「主机已保存、上限没写进去」
   的 warning，而不是把两者都说成失败。
-- **设置页的直连写入 / 一键更新改为等待具体命名空间服务**：`remote.settings` 与
-  `remote.pluginManager` 在 cordis 里是各自独立的服务；之前只等 `remote`，命名空间还没挂上时
-  回调就跑了，错误可见性和更新按钮会静默退化。现在分别
-  `inject(['remote', 'remote.settings'])` 与 `inject(['remote', 'remote.pluginManager'])`。
+
 
 ## [0.10.3] - 2026-10-28
 
@@ -391,9 +377,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.5...HEAD
-[0.10.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.4...v0.10.5
-[0.10.4]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.3...v0.10.4
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...HEAD
 [0.10.3]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.0...v0.10.1

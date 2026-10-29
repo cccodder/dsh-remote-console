@@ -7,17 +7,55 @@
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 
-An SSH remote console in the DeepSeek Harness (DSH) right sidebar: you and your agent work on
-the remote host through the **same PTY**. You complete the SSH login yourself; the agent runs
-commands through that same terminal; both sides write to one replayable activity log.
+You ssh in and type the password; the agent can only wait on the side — it cannot see your terminal. This plugin puts the agent **inside the terminal you are watching**: you see what it runs, you can take over at any moment, and both sides land in one activity log.
 
-The plugin does not reimplement a terminal: rendering, input and window management reuse
-DSH's own terminal. It only adds remote launchers to the shell list, captures that PTY's
-byte stream, and gives the agent tools that write into the same terminal.
+**An SSH console in the DSH right sidebar where you and your agent share one PTY.** No new terminal to learn (rendering, input and window management are DSH's own), no DSH patch, no stored password.
 
-![The SSH remote panel in the right sidebar; example host names are redacted](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+### 30-second start
 
-![The agent running commands in the same remote terminal; example host names are redacted](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
+```bash
+# CLI-managed profile (e.g. web)
+dsh plugin --profile web add dsh-remote-console
+# then add "dsh-remote-console" to that profile's dsh.profile.bundles and restart DSH
+```
+
+- **Plugin market**: `Discover → Add index source` and paste `https://cccodder.github.io/dsh-remote-console/market/index.json`
+- **Electron desktop app**: search `dsh-remote-console` in its plugin manager (or paste `github:cccodder/dsh-remote-console`)
+- **0.10.4+**: the configuration page checks for updates and updates in place through DSH's plugin manager (hot-applied, no restart)
+
+Then: right sidebar → "SSH remote" → pick a host → you type the password → let the agent work in that same terminal.
+
+### What it is not
+
+| You might expect | Answer |
+| --- | --- |
+| A remote development environment (file tree, workspace mirror, VS Code Remote style) | No. You get a real remote terminal; large files go through `remote_upload` / `remote_download` |
+| An agent that connects behind your back and runs commands | No. It runs in the terminal you are watching — visible, interruptible, audited |
+| Yet another terminal implementation | No. xterm rendering, input and window management are all DSH's own |
+| A patched DSH fork | No. It only wraps public terminal services, so DSH upgrades need no re-patching |
+
+### At a glance
+
+| | |
+| --- | --- |
+| Agent tools | 16: terminal 6 · files 4 · port forwarding 1 · audit 2 · host list 3 |
+| File transfer | Streamed with sha256 on both sides; 256 MB per file by default, 1–2048 MB in the settings page |
+| Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
+| Audit | Cross-session JSONL: commands, exit codes, approvals, transfer paths + sha256, tunnels; redacted |
+| Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
+| Tests | 159 tests including a real sshd in CI; npm releases carry provenance |
+
+![right sidebar SSH panel](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+
+*The SSH panel: host list, connection state, and the one log both sides share. Host names masked.*
+
+![agent working inside the same terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
+
+*The agent runs commands in the terminal you are watching; its commands and yours land in the same log.*
+
+## Contents
+
+[Why](#why) · [Install](#install) · [Usage](#usage) · [Managing the host list](#managing-the-host-list) · [Updates](#updates) · [Security](#security) · [Environment variables](#environment-variables) · [Troubleshooting](#troubleshooting) · [Compatibility](#compatibility) · [Windows](#windows-experimental) · [Benchmark](#benchmark-loopback) · [Development](#development) · [Data directory](#data-directory) · [License](#license)
 
 ## Why
 
@@ -184,13 +222,6 @@ available *and* npm has it, click **Update to vX.Y.Z**:
 A failed install rolls back to the current version and shows the original error. If DSH reports
 that this change needs a restart, the page says so. Older deployments without
 `remote.pluginManager` disable the button and fall back to options 2/3.
-
-> **When a restart is needed**: the Host half reloads in place through HMR, but the browser bundle
-> graph is built from the paths resolved at startup. If the current version was installed from a
-> local directory or a `link:` spec, updating switches the source to npm and the paths change, so
-> DSH does not rebuild that graph: the page says "installed vX, restart DSH once", and the version
-> changes after the restart. Upgrades between npm-installed versions keep the same paths and need
-> no restart.
 
 **Option 2 — plugin market**
 
