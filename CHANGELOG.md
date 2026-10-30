@@ -8,6 +8,14 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Changed
+
+- **更新机制对齐 ds-bot**：查更新前先判断这个 profile 当初是怎么装的——npm registry 安装按 DSH/pnpm
+  配置的 registry 顺序查（镜像优先，查不到再退公共源），带版本 tag 的 git 安装查 GitHub release，
+  本地目录 / `link:` 安装不再提示一键更新（避免覆盖开发目录）。检查结果缓存从 6 小时缩到 10 分钟；
+  安装时先直接 `installBundle`（非 HMR 部署可原地升级），被 `already-installed` 拒绝才退成
+  「卸载 → 安装」，失败仍自动装回当前版本。
+
 ## [0.10.5] - 2026-10-29
 
 ### Fixed

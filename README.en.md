@@ -221,6 +221,12 @@ available *and* npm has it, click **Update to vX.Y.Z**:
 2. DSH's HMR applies the change to the running process — **no restart**;
 3. the page reloads itself to pick up the new client bundle, and the version number changes.
 
+Update checks first look at how this profile installed the plugin: an npm install queries the
+registry order DSH/pnpm is configured with (mirror first, public fallback next), a git install pinned
+to a version tag queries GitHub releases, and a local directory or `link:` install is never offered
+an in-place update (so a development checkout is not overwritten). Results are cached for 10 minutes;
+**Re-check** forces a fresh read.
+
 A failed install rolls back to the current version and shows the original error. If DSH reports
 that this change needs a restart, the page says so. Older deployments without
 `remote.pluginManager` disable the button and fall back to options 2/3.

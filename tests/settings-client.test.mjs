@@ -252,27 +252,93 @@ describe('设置页注册（客户端）', () => {
     assert.ok(refreshCalls >= 2, `失败重试前应刷新快照，实际 ${refreshCalls} 次`);
   });
 
-  it('一键热更新：卸载 → 安装新版本，HMR 热应用返回 applied', async () => {
+  it('更新：按安装来源决定查询方式（对齐 ds-bot）', () => {
+    const client = loadClient();
+    const { sourceOf } = client.__testing;
+    assert.equal(sourceOf('dsh-remote-console').kind, 'registry');
+    assert.equal(sourceOf('dsh-remote-console@^0.10.5').kind, 'registry');
+    assert.equal(sourceOf('link:/tmp/rc').kind, 'path');
+    assert.equal(sourceOf('/data/work/rc').kind, 'path');
+    assert.equal(sourceOf('file:../rc').kind, 'path');
+    assert.equal(sourceOf('https://example.com/rc.tgz').kind, 'tarball');
+    assert.equal(sourceOf('').kind, 'unknown');
+    const git = sourceOf('github:cccodder/dsh-remote-console#v0.10.5');
+    assert.equal(git.kind, 'git');
+    assert.equal(git.ref, 'v0.10.5');
+    assert.equal(sourceOf('git@github.com:cccodder/dsh-remote-console.git').kind, 'git');
+  });
+
+  it('更新：registry 顺序跟随 DSH/pnpm 配置，镜像优先（对齐 ds-bot）', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    assert.deepEqual(await registryPlan(undefined), ['https://registry.npmjs.org/', 'https://registry.npmmirror.com/']);
+    assert.deepEqual(
+      await registryPlan({
+        registries: async () => ({
+          registry: 'https://registry.npmmirror.com',
+          fallbackRegistries: ['https://registry.npmjs.org/', 'https://registry.npmmirror.com/'],
+          resolved: null,
+        }),
+      }),
+      ['https://registry.npmmirror.com/', 'https://registry.npmjs.org/'],
+    );
+    // 私有 registry：只问它，不把包名泄露给公共 registry
+    assert.deepEqual(
+      await registryPlan({
+        registries: async () => ({ registry: 'https://npm.corp.example/', fallbackRegistries: [], resolved: null }),
+      }),
+      ['https://npm.corp.example/'],
+    );
+  });
+
+  it('一键热更新：先直接安装（非 HMR 部署可原地升级），成功不卸载', async () => {
     const client = loadClient();
     const { runHotUpdate } = client.__testing;
     const calls = [];
     const manager = {
       removeBundle: async (name) => {
         calls.push(['remove', name]);
-        return { changed: true, application: 'applied', stage: 'remove', target: name };
+        return { application: 'applied' };
       },
       installBundle: async (spec, options) => {
         calls.push(['install', spec, options]);
         return { changed: true, application: 'applied', stage: 'install', target: spec };
       },
     };
-    assert.deepEqual(await runHotUpdate(manager, 'v0.10.4', '0.10.3'), {
+    assert.deepEqual(await runHotUpdate(manager, { spec: 'dsh-remote-console@0.10.6' }, '0.10.5'), {
       ok: true,
       application: 'applied',
     });
+    assert.deepEqual(calls, [['install', 'dsh-remote-console@0.10.6', { saveExact: true }]]);
+  });
+
+  it('一键热更新：HMR 拒绝 already-installed 时退成 卸载 → 安装', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const calls = [];
+    let installs = 0;
+    const manager = {
+      removeBundle: async (name) => {
+        calls.push(['remove', name]);
+        return { application: 'applied' };
+      },
+      installBundle: async (spec, options) => {
+        calls.push(['install', spec, options]);
+        installs += 1;
+        if (installs === 1) return { error: { code: 'already-installed', message: 'already installed' } };
+        return { application: 'applied' };
+      },
+    };
+    const result = await runHotUpdate(
+      manager,
+      { spec: 'dsh-remote-console@0.10.6', registry: 'https://registry.npmjs.org/' },
+      '0.10.5',
+    );
+    assert.deepEqual(result, { ok: true, application: 'applied' });
     assert.deepEqual(calls, [
+      ['install', 'dsh-remote-console@0.10.6', { saveExact: true, registry: 'https://registry.npmjs.org/' }],
       ['remove', 'dsh-remote-console'],
-      ['install', 'dsh-remote-console@v0.10.4', { saveExact: true }],
+      ['install', 'dsh-remote-console@0.10.6', { saveExact: true, registry: 'https://registry.npmjs.org/' }],
     ]);
   });
 
@@ -283,40 +349,41 @@ describe('设置页注册（客户端）', () => {
       removeBundle: async () => ({ application: 'applied' }),
       installBundle: async () => ({ application: 'restart-required', restartReason: 'bundle-structure' }),
     };
-    const result = await runHotUpdate(manager, '0.10.4', '0.10.3');
+    const result = await runHotUpdate(manager, { spec: 'dsh-remote-console@0.10.6' }, '0.10.5');
     assert.equal(result.ok, true);
     assert.equal(result.application, 'restart-required');
     assert.equal(result.restartReason, 'bundle-structure');
   });
 
-  it('一键热更新：新版本装失败时回滚到当前版本', async () => {
+  it('一键热更新：新版本装失败时按当前版本回滚', async () => {
     const client = loadClient();
     const { runHotUpdate } = client.__testing;
     const installed = [];
+    let installs = 0;
     const manager = {
       removeBundle: async () => ({ application: 'applied' }),
       installBundle: async (spec) => {
         installed.push(spec);
-        if (spec.endsWith('@0.10.4')) return { application: 'failed', error: { message: 'registry 404' } };
+        installs += 1;
+        if (installs === 1) return { error: { code: 'already-installed' } };
+        if (installs === 2) return { application: 'failed', error: { message: 'registry 404' } };
         return { application: 'applied' };
       },
     };
-    const result = await runHotUpdate(manager, '0.10.4', '0.10.3');
+    const result = await runHotUpdate(manager, { spec: 'dsh-remote-console@0.10.6' }, '0.10.5');
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'INSTALL_FAILED');
     assert.match(String(result.error), /registry 404/u);
     assert.equal(result.rollback, 'ok');
-    assert.deepEqual(installed, ['dsh-remote-console@0.10.4', 'dsh-remote-console@0.10.3']);
+    assert.deepEqual(installed, ['dsh-remote-console@0.10.6', 'dsh-remote-console@0.10.6', 'dsh-remote-console@0.10.5']);
   });
 
   it('一键热更新：没有插件管理服务时明确拒绝，不瞎卸载', async () => {
     const client = loadClient();
     const { runHotUpdate } = client.__testing;
-    let called = false;
-    const result = await runHotUpdate(undefined, '0.10.4', '0.10.3');
+    const result = await runHotUpdate(undefined, { spec: 'dsh-remote-console@0.10.6' }, '0.10.5');
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'NO_PLUGIN_MANAGER');
-    assert.equal(called, false);
   });
 
   it('版本号与 package.json 一致（设置页不绕过发版检查）', () => {
