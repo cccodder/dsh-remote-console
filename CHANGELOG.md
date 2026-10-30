@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-10-30
+
 ### Fixed
 
 - **更新检查在 0.10.6/0.10.7 上整体失效（真根因）**：DSH 的 Remote 调用返回的是 `{ ok, value }` 包膜（官方插件管理器自己也是
@@ -15,7 +17,6 @@ extension points, so a DSH minor release may need a plugin release.
   「有新版本 / 更新到 / 慢网超时」整条链路都走不到。现在正确解包，`source` 缺失时按 `包名@版本` 兜底成 registry。
 - **区分「没有插件管理器」和「暂时读不到」**：`manager` 不存在时显示「当前 DSH 未提供插件管理服务，请手动安装新版本」（确定结论、不给重试）；
   管理器在但 `listBundles` 返回 `ok:false` 或读不到时才提示「点重新检查重试」。两种情况都不写缓存。
-
 
 ## [0.10.7] - 2026-10-30
 
@@ -430,7 +431,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.7...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.8...HEAD
+[0.10.8]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.4...v0.10.5
