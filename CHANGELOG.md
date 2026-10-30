@@ -8,6 +8,13 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **面板里多出一个只写 IP 的重复入口**：登录成功后 `hosts.tsv` 会记下这台机器，但读回时把第一列当别名，
+  于是「设置页里的 `demo@127.0.0.1:2222`」旁边又多出一个 `127.0.0.1`。现在带 `user`/`port` 的行按
+  `user@host:port` 还原成直连目标（`--target`），并按 `user`/`host`/`port`（缺省端口按 22）与设置页去重；
+  `user`/`port` 都为空的行才当别名。
+
 ## [0.10.8] - 2026-10-30
 
 ### Fixed
