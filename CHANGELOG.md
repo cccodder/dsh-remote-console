@@ -8,6 +8,13 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **「点更新 → 刷新后版本没变」的静默失败**：plugin-manager 的 `installBundle` / `removeBundle` 也返回 `{ ok, value }` 包膜，
+  而 `runHotUpdate()` 只读顶层字段，于是 `value.error.code === "already-installed"` 被当成成功：写 pending 标记、刷新页面，
+  实际什么都没装；「卸载 → 安装」的兜底分支也永远不会触发。现在统一解包包膜，并在安装后用 `listBundles` 复核目标版本，
+  没装上就报 `INSTALL_UNCONFIRMED`（如实失败），不再假成功。
+
 ## [0.10.9] - 2026-10-30
 
 ### Fixed
