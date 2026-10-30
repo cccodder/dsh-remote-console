@@ -335,3 +335,29 @@ describe('安装来源：Remote 返回 {ok, value} 包膜（0.10.6/0.10.7 的真
     assert.deepEqual(await readInstallSpec(null), { status: 'no-manager' });
   });
 });
+
+
+describe('registryPlan 的 Remote 包膜', () => {
+  it('{ok,value} 包膜里的 resolved 会被采用（本地/镜像 registry）', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({
+      registries: async () => ({ ok: true, value: { registry: null, resolved: 'http://127.0.0.1:4873/' } }),
+    });
+    assert.equal(plan[0], 'http://127.0.0.1:4873/');
+  });
+
+  it('ok:false 时回退官方 registry', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({ registries: async () => ({ ok: false, error: { message: 'nope' } }) });
+    assert.deepEqual(plan, ['https://registry.npmjs.org/', 'https://registry.npmmirror.com/']);
+  });
+
+  it('裸返回值（老版本）仍然可用', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({ registries: async () => ({ registry: 'http://127.0.0.1:4874/' }) });
+    assert.equal(plan[0], 'http://127.0.0.1:4874/');
+  });
+});
