@@ -8,6 +8,15 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **更新检查在 0.10.6/0.10.7 上整体失效（真根因）**：DSH 的 Remote 调用返回的是 `{ ok, value }` 包膜（官方插件管理器自己也是
+  `bundles.value.map(...)`），而 `installSpecOf` 按**裸数组**解析，`Array.isArray` 恒 false → 有插件管理器也永远读不到安装来源，
+  「有新版本 / 更新到 / 慢网超时」整条链路都走不到。现在正确解包，`source` 缺失时按 `包名@版本` 兜底成 registry。
+- **区分「没有插件管理器」和「暂时读不到」**：`manager` 不存在时显示「当前 DSH 未提供插件管理服务，请手动安装新版本」（确定结论、不给重试）；
+  管理器在但 `listBundles` 返回 `ok:false` 或读不到时才提示「点重新检查重试」。两种情况都不写缓存。
+
+
 ## [0.10.7] - 2026-10-30
 
 ### Fixed
