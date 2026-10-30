@@ -42,6 +42,13 @@ writes the **same PTY** through text tools. Nothing in DSH itself is modified.
    and `session`. Subagent/child sessions have their own SessionId and deliberately do not inherit
    their parent's terminal.
 
+9. **UI acceptance needs screenshots *and* a recording.** A change to the settings page, the
+   sidebar panel or the terminal UI is only "verified" when the reviewer returns both screenshots
+   and a screen recording of the same run: one continuous take from baseline through the action to
+   the result, with the key frames not cut out. The report must say where the recording lives, how
+   long it is, which steps it covers, and which frames map to which screenshot. A written "looks
+   right" plus a few stills is not acceptance.
+
 ## Commands
 
 Run in the repository root:
@@ -67,7 +74,8 @@ passes on a machine without them.
   sensitive-write approval, session-log lifecycle, and the cross-session audit trail in `audit/`.
 - `lib/client.js` — browser bundle, hand-written: sidebar guide card, host panel, terminal tab,
   version/update hint, and the plugin-row settings page (host list over `ctx.configForms`,
-  registered only when that service exists). Updates are cached 6h; failures stay silent.
+  registered only when that service exists). Update checks are cached for 10 minutes and pick the
+  source from how the plugin was installed; failures stay silent.
 - `bin/dsh-ssh` — bash wrapper: host menu / one-shot launcher (`--host`, `--target`,
   `--ask-target`), rendezvous file, portable timestamps. Must stay POSIX-bash and
   macOS-compatible.
