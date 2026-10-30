@@ -49,11 +49,11 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 
 ![right sidebar SSH panel: host entries and a new session entry](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*The "SSH remote" panel: click a host to ssh and type your password, or use "New session" with `user@ip`. The example host `demo@127.0.0.1:2222` is a test sshd, not a real machine.*
+*The "SSH remote" panel: click a host to ssh and type your password, or use "New session" with `user@ip`. The example host `demo-vm.example.com` is a local test sshd (`example.com` is the reserved documentation domain, not a real machine).*
 
 ![agent working inside the same terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
-*The agent runs commands in the terminal you are watching: the chat on the left shows its `remote_run`, the right is the same PTY; `pwd` is `/tmp` on both sides, so the human and the agent share one shell.*
+*The agent runs commands in the terminal you are watching: the chat on the left shows its `remote_run`, the right is the same PTY; `pwd` is `/tmp` on both sides, so the human and the agent share one shell. The example host is the same `demo-vm.example.com` test machine.*
 
 ## Contents
 
