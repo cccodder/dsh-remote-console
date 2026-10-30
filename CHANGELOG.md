@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-10-30
+
 ### Fixed
 
 - **面板里多出一个只写 IP 的重复入口**：登录成功后 `hosts.tsv` 会记下这台机器，但读回时把第一列当别名，
@@ -438,7 +440,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.8...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.9...HEAD
+[0.10.9]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.5...v0.10.6
