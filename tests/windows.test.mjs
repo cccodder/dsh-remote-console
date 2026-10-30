@@ -179,6 +179,55 @@ describe('无 ControlMaster 时的通道选择', () => {
     }
   });
 
+  it('启动器解析真正的 Node（issue #26：Desktop 的 execPath 是 App 不是 node）', () => {
+    const { resolveNodeExecutable } = __testing;
+    // CLI 宿主：execPath 本身就是 node
+    assert.equal(resolveNodeExecutable({ execPath: '/usr/bin/node', env: {}, platform: 'linux', exists: () => false }), '/usr/bin/node');
+    // 显式覆盖优先
+    assert.equal(
+      resolveNodeExecutable({ execPath: 'C:\\App\\DeepSeek Harness.exe', env: { DSH_RC_NODE: 'C:\\node\\node.exe' }, platform: 'win32', exists: () => false }),
+      'C:\\node\\node.exe',
+    );
+    // DSH Desktop：按候选路径找到自带的 Node（用 POSIX 布局模拟，Windows 侧由 path.join 生成同构路径）
+    const appPath = '/opt/DeepSeek Harness/DeepSeek Harness';
+    const expected = join('/opt/DeepSeek Harness', 'resources', 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node');
+    assert.equal(resolveNodeExecutable({ execPath: appPath, env: {}, platform: 'linux', exists: (candidate) => candidate === expected }), expected);
+    // 找不到候选时退回 execPath（保持原行为，不引入新的失败点）
+    assert.equal(resolveNodeExecutable({ execPath: appPath, env: {}, platform: 'linux', exists: () => false }), appPath);
+  });
+
+  it('Windows 写入按 8 字符切片（issue #26 的丢帧修复）', async () => {
+    const { writeSlices, chunkedWrites } = __testing;
+    assert.deepEqual(writeSlices('1234567890abcdefghij'), ['12345678', '90abcdef', 'ghij']);
+    assert.deepEqual(writeSlices('short'), ['short']);
+    assert.deepEqual(writeSlices(''), []);
+    assert.equal(typeof chunkedWrites(), 'boolean');
+
+    ensureDirs();
+    const previous = process.env.DSH_RC_FORCE_SLOW_WRITE;
+    process.env.DSH_RC_FORCE_SLOW_WRITE = '1';
+    try {
+      const writes = [];
+      const cover = new __testing.Console(
+        'slow-write',
+        {
+          write: async (chunk) => {
+            writes.push(chunk);
+          },
+        },
+        new PassThrough(),
+        {},
+      );
+      await cover.write(' echo 1234567890abcdefghij\r');
+      assert.equal(writes.join(''), ' echo 1234567890abcdefghij\r');
+      assert.ok(writes.length > 1, '应分片写入');
+      assert.ok(writes.every((chunk) => chunk.length <= 8));
+    } finally {
+      if (previous === undefined) delete process.env.DSH_RC_FORCE_SLOW_WRITE;
+      else process.env.DSH_RC_FORCE_SLOW_WRITE = previous;
+    }
+  });
+
   it('spawnTerminal 能识别 node 版启动器并接管输出', async () => {
     const handles = [];
     const controller = { shells: async () => [], list: () => [], retain: () => ({}) };
