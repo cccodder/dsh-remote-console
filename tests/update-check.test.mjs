@@ -161,8 +161,8 @@ describe('更新检查的缓存（只有结论才写）', () => {
     const { checkForUpdate } = client.__testing;
     await withEnv(async (store) => {
       const result = await checkForUpdate(undefined);
-      assert.equal(result.source, 'unknown');
-      assert.equal(store.size, 0, 'unknown 只是这一次没问出来，不能缓存');
+      assert.equal(result.source, 'no-manager');
+      assert.equal(store.size, 0, 'no-manager 是确定结论但也不缓存（以后装了管理器要能立刻生效）');
     });
   });
 });
@@ -280,5 +280,58 @@ describe('侧栏面板首开（回归：fetchLatestRelease 被删但仍在调用
       writePanelHint({ tag: '0.10.7', url: 'https://example.invalid', at: Date.now() - 31 * 60 * 1000 });
       assert.equal(readPanelHint(), undefined);
     });
+  });
+});
+
+
+describe('安装来源：Remote 返回 {ok, value} 包膜（0.10.6/0.10.7 的真 bug）', () => {
+  it('包膜解包后能拿到 source，更新检查正常工作', async () => {
+    const client = loadClient();
+    const { checkForUpdate, readInstallSpec } = client.__testing;
+    let calls = 0;
+    await withEnv(
+      async (store) => {
+        const manager = {
+          listBundles: async () => ({ ok: true, value: [{ name: PACKAGE, version: '0.10.7', source: `${PACKAGE}@0.10.7` }] }),
+        };
+        assert.deepEqual(await readInstallSpec(manager, { retryMs: 5 }), { status: 'ok', spec: `${PACKAGE}@0.10.7` });
+        const result = await checkForUpdate(manager);
+        assert.equal(result.source, 'registry');
+        assert.equal(result.latest, '0.10.8');
+        assert.equal(calls, 1);
+        assert.equal(JSON.parse(store.get(CACHE_KEY)).definitive, true);
+      },
+      {
+        fetchImpl: async () => {
+          calls += 1;
+          return { ok: true, json: async () => ({ version: '0.10.8' }) };
+        },
+      },
+    );
+  });
+
+  it('source 缺失但有 version 时按 registry 处理', async () => {
+    const client = loadClient();
+    const { readInstallSpec } = client.__testing;
+    const manager = { listBundles: async () => ({ ok: true, value: [{ name: PACKAGE, version: '0.10.7' }] }) };
+    assert.deepEqual(await readInstallSpec(manager, { retryMs: 5 }), { status: 'ok', spec: `${PACKAGE}@0.10.7` });
+  });
+
+  it('管理器返回 ok:false → read-failed，页面提示可重试、且不写缓存', async () => {
+    const client = loadClient();
+    const { checkForUpdate } = client.__testing;
+    await withEnv(async (store) => {
+      const manager = { listBundles: async () => ({ ok: false, error: { message: 'denied' } }) };
+      const result = await checkForUpdate(manager);
+      assert.equal(result.source, 'unreadable');
+      assert.equal(store.size, 0);
+    });
+  });
+
+  it('没有管理器 → no-manager（确定结论：只能手动更新）', async () => {
+    const client = loadClient();
+    const { readInstallSpec } = client.__testing;
+    assert.deepEqual(await readInstallSpec(undefined), { status: 'no-manager' });
+    assert.deepEqual(await readInstallSpec(null), { status: 'no-manager' });
   });
 });
