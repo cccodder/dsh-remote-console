@@ -49,6 +49,15 @@ writes the **same PTY** through text tools. Nothing in DSH itself is modified.
    long it is, which steps it covers, and which frames map to which screenshot. A written "looks
    right" plus a few stills is not acceptance.
 
+   A recording is only acceptable from a **real, signed-in user session**. The browser token that
+   `dsh web` prints authenticates the HTTP layer, not a DSH account: a fresh `DSH_HOME` without a
+   DeepSeek login or API key shows the "开始使用" onboarding and, without a default workspace, a
+   "无法创建默认工作区" toast. Before recording, refuse to start unless: the profile has an account
+   (or API key) signed in, a default workspace exists, and the page shows none of
+   `开始使用` / `无法创建默认工作区` / `authentication required`. After recording, review the
+   whole clip (contact sheet plus the first/action/result frames) — a checklist of frame names is not
+   a review. The reviewer must look at those frames before accepting; metadata alone is never enough.
+
 ## Commands
 
 Run in the repository root:
