@@ -8,6 +8,15 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows Desktop 两处修复（issue #26）**：
+  1. 启动器现在解析真正的 Node 可执行文件。DSH Desktop 的 Host 跑在 Electron 里，
+     `process.execPath` 是 App 而不是 node，用它启动等于再拉起一个 App 实例，终端一开就退出；
+     现在按「`DSH_RC_NODE` → execPath 本身是 node → Desktop 自带的 Node → 兜底 execPath」顺序解析。
+  2. Windows PTY 写入按 8 字符、每片 12ms 分片，修复长命令中间丢 16 字节（ConPTY 丢帧）。
+     分片参数可用 `DSH_RC_WRITE_SLICE` / `DSH_RC_WRITE_GAP_MS` 覆盖。
+
 ## [0.10.6] - 2026-10-30
 
 ### Changed

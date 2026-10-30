@@ -553,8 +553,13 @@ the agent tools automatically fall back to the PTY channel when no socket exists
   (base64 chunks through the terminal), regardless of the configurable per-file limit.
 - Not available: `remote_forward` (port forwarding needs one authenticated reusable connection).
   `remote_audit_*` is unaffected.
-- Launchers are `node dsh-ssh.mjs --host/--target ...` and use the Node that ships with DSH
-  (`process.execPath`), so no extra system Node is needed.
+- Launchers are `node dsh-ssh.mjs --host/--target ...` and use the Node that ships with DSH, so no
+  extra system Node is needed. DSH Desktop runs its Host inside Electron, where `process.execPath`
+  is the app rather than Node; the plugin resolves `DSH_RC_NODE` → bundled Node → `process.execPath`
+  (issue #26).
+- Windows ConPTY drops frames on a single large write, so PTY writes are sliced into 8-character
+  chunks with a 12 ms gap (tunable via `DSH_RC_WRITE_SLICE` / `DSH_RC_WRITE_GAP_MS`); long commands
+  and PTY transfers are correspondingly slower.
 - Experimental: there is no Windows machine on the build host, so the logic is verified through
   equivalent paths on Linux (Node wrapper, PTY chunked I/O, transport selection, automatic tool
   fallback); the real Windows conpty rendering and line-length limits still need a device check.
