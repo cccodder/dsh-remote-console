@@ -47,9 +47,9 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
 | Tests | 180 tests including a real sshd in CI; npm releases carry provenance |
 
-![right sidebar SSH panel (example host is a local test sshd)](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+![right sidebar SSH panel: host entries and a new session entry](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*The SSH panel: host list, connection state, and the one log both sides share. The example uses a test host `demo@127.0.0.1:2222` (fake sshd, not a real machine).*
+*The "SSH remote" panel: click a host to ssh and type your password, or use "New session" with `user@ip`. The example host `demo@127.0.0.1:2222` is a test sshd, not a real machine.*
 
 ![agent working inside the same terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 

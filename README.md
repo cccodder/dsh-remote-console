@@ -46,9 +46,9 @@ dsh plugin --profile web add dsh-remote-console
 | 依赖 | 运行时 0 依赖；不改 DSH；Node ≥ 20 |
 | 测试 | 180 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
 
-![右侧栏的 SSH 远程面板；示例用的是测试主机 demo@127.0.0.1:2222](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+![侧栏「SSH 远程」面板：主机入口与新建会话](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*右侧栏的 SSH 面板：主机列表、连接状态、人和 agent 共用的那条日志。示例用的是测试主机 `demo@127.0.0.1:2222`（假 sshd，非真实主机）。*
+*侧栏「SSH 远程」面板：点主机直接进 ssh 输密码，或「新建会话」输入 `user@ip`。示例主机 `demo@127.0.0.1:2222` 是测试用的假 sshd（非真实主机）。*
 
 ![agent 在同一个远端终端里执行命令](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
