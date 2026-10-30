@@ -45,15 +45,15 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 | Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
 | Audit | Cross-session JSONL: commands, exit codes, approvals, transfer paths + sha256, tunnels; redacted |
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
-| Tests | 173 tests including a real sshd in CI; npm releases carry provenance |
+| Tests | 180 tests including a real sshd in CI; npm releases carry provenance |
 
-![right sidebar SSH panel](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+![right sidebar SSH panel (example host is a local test sshd)](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*The SSH panel: host list, connection state, and the one log both sides share. Host names masked.*
+*The SSH panel: host list, connection state, and the one log both sides share. The example uses a test host `demo@127.0.0.1:2222` (fake sshd, not a real machine).*
 
 ![agent working inside the same terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
-*The agent runs commands in the terminal you are watching; its commands and yours land in the same log.*
+*The agent runs commands in the terminal you are watching: the chat on the left shows its `remote_run`, the right is the same PTY; `pwd` is `/tmp` on both sides, so the human and the agent share one shell.*
 
 ## Contents
 
@@ -180,6 +180,8 @@ Hosts in the panel come from three places: `~/.ssh/config`, the plugin settings 
 
 4. Save. The host regenerates the sidebar "SSH remote" launchers: aliases go through the ssh config,
    `user@host:port` targets skip the menu and connect directly.
+
+   ![The host list on the settings page](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/settings-hosts.png)
 
 The same page has a **"Per-file transfer limit (MB)"** field: 256 by default, 1–2048 allowed. It caps
 `remote_upload` / `remote_download` and takes effect immediately after saving (no plugin reload).
