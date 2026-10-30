@@ -207,14 +207,14 @@ patch, the tools write `~/.dsh/remote-console/hosts.tsv`; the panel merges both.
 ## Updates
 
 **Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.5`). The
-client asks GitHub for the latest release once (cached for 6 hours; offline/rate-limit/CORS
+client asks GitHub for the latest release once (cached for 10 minutes; offline/rate-limit/CORS
 failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
 link opens the GitHub release page.
 
 **Option 1 — one-click hot update in the settings page (recommended)**
 
 Sidebar → **Plugins** → `dsh-remote-console` → its configuration page. Opening the page checks
-the latest release (GitHub, cached 6 hours, with a **Re-check** button). Once a newer version is
+the latest release (GitHub, cached 10 minutes, with a **Re-check** button). Once a newer version is
 available *and* npm has it, click **Update to vX.Y.Z**:
 
 1. the DSH plugin manager uninstalls the current version and installs the new one;
@@ -249,6 +249,10 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 Add it under **Discover → Add index source**; the entry then shows "Update available" when a
 newer version is in the index, and DSH installs it through the plugin manager (`dsh-remote-console@<version>`
 from npm). The install location and the data directory stay the same.
+
+> A third-party plugin installed from the market starts out **disabled**: click **Enable now**
+> (or flip the plugin toggle) on the Plugins page, otherwise the sidebar "SSH remote" entry
+> never shows up.
 
 > This is GitHub Pages, updated on every push (the first build takes about a minute).
 > If it is unreachable, use the jsDelivr URL
@@ -466,7 +470,7 @@ data collection (it runs `sh -c` in a subprocess and does not end the terminal);
 version unchanged; the index URL still returns old content.
 
 **Cause**: the first GitHub Pages build takes about a minute; jsDelivr caches the branch for up to
-~12 hours; the client's "update available" hint is cached for 6 hours; DSH only provides a native
+~12 hours; the client's "update available" hint is cached for 10 minutes; DSH only provides a native
 *Update* entry for official on-demand plugins, so third-party plugins rely on the market index or a
 reinstall, and hot reload occasionally does not replace the old package.
 
