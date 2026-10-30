@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-10-30
+
 ### Changed
 
 - **更新机制对齐 ds-bot**：查更新前先判断这个 profile 当初是怎么装的——npm registry 安装按 DSH/pnpm
@@ -400,6 +402,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
 [Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.5...HEAD
+[0.10.6]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.4...v0.10.5
 [0.10.4]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.3...v0.10.4
 [0.10.3]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.2...v0.10.3

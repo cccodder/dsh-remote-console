@@ -42,14 +42,30 @@
           "dsh",
           "deepseek-harness",
           "dsh-plugin",
+          "dsh-ssh",
           "ssh",
+          "ssh-client",
+          "remote-terminal",
           "remote-console",
+          "pty",
+          "ai-agent",
+          "deepseek",
           "terminal"
         ],
         "labels": [],
         "sortKeys": {}
       },
       "versions": [
+        {
+          "version": "0.10.6",
+          "publishTimestamp": 1793335594,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.2 <0.3.0-0"
+          }
+        },
         {
           "version": "0.10.5",
           "publishTimestamp": 1793245182,
