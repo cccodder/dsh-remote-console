@@ -14,6 +14,9 @@ extension points, so a DSH minor release may need a plugin release.
   而 `runHotUpdate()` 只读顶层字段，于是 `value.error.code === "already-installed"` 被当成成功：写 pending 标记、刷新页面，
   实际什么都没装；「卸载 → 安装」的兜底分支也永远不会触发。现在统一解包包膜，并在安装后用 `listBundles` 复核目标版本，
   没装上就报 `INSTALL_UNCONFIRMED`（如实失败），不再假成功。
+- **本地/镜像 registry 的更新检查也修了**：`manager.registries()` 同样是 `{ ok, value }` 包膜，`registryPlan()` 没解包时
+  会永远回退官方 npmjs，本地私有 registry（Verdaccio）或镜像用户的更新检查查错了地方。现在统一解包；读取失败时
+  官方与镜像都问一遍，不再只锁一条路。
 
 ## [0.10.9] - 2026-10-30
 
