@@ -48,11 +48,11 @@ dsh plugin --profile web add dsh-remote-console
 
 ![侧栏「SSH 远程」面板：主机入口与新建会话](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*侧栏「SSH 远程」面板：点主机直接进 ssh 输密码，或「新建会话」输入 `user@ip`。示例主机 `demo@127.0.0.1:2222` 是测试用的假 sshd（非真实主机）。*
+*侧栏「SSH 远程」面板：点主机直接进 ssh 输密码，或「新建会话」输入 `user@ip`。示例主机 `demo-vm.example.com` 是本地起的测试 sshd（`example.com` 是文档保留域名，不是真实机器）。*
 
 ![agent 在同一个远端终端里执行命令](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
-*agent 在你正在看的终端里执行命令：左边是聊天里 agent 的 `remote_run`，右边是同一个 PTY 里的输出；`pwd` 两边都是 `/tmp`，说明人和 agent 用的是同一个 shell。*
+*agent 在你正在看的终端里执行命令：左边是聊天里 agent 的 `remote_run`，右边是同一个 PTY 里的输出；`pwd` 两边都是 `/tmp`，说明人和 agent 用的是同一个 shell。示例同样是 `demo-vm.example.com` 测试机。*
 
 ## 目录
 
