@@ -44,15 +44,15 @@ dsh plugin --profile web add dsh-remote-console
 | 终端 | 复用 DSH 原生终端，人机共用 PTY；退出码由 shell 钩子（OSC）回传，不靠猜提示符 |
 | 审计 | 跨会话 JSONL：命令、退出码、审批结果、传输路径 + sha256、转发；写入前脱敏 |
 | 依赖 | 运行时 0 依赖；不改 DSH；Node ≥ 20 |
-| 测试 | 173 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
+| 测试 | 180 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
 
-![右侧栏的 SSH 远程面板；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
+![右侧栏的 SSH 远程面板；示例用的是测试主机 demo@127.0.0.1:2222](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
-*右侧栏的 SSH 面板：主机列表、连接状态、人和 agent 共用的那条日志。示例主机名已打码。*
+*右侧栏的 SSH 面板：主机列表、连接状态、人和 agent 共用的那条日志。示例用的是测试主机 `demo@127.0.0.1:2222`（假 sshd，非真实主机）。*
 
-![agent 在同一个远端终端里执行命令；示例主机名已打码](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
+![agent 在同一个远端终端里执行命令](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-agent-terminal.png)
 
-*agent 在你正在看的终端里执行命令；它和你敲的东西都落在同一条日志里。*
+*agent 在你正在看的终端里执行命令：左边是聊天里 agent 的 `remote_run`，右边是同一个 PTY 里的输出；`pwd` 两边都是 `/tmp`，说明人和 agent 用的是同一个 shell。*
 
 ## 目录
 
@@ -185,6 +185,8 @@ sudoers、shell profile 这类敏感路径时会先要你审批一次。能力/�
 
 4. 点「保存」。宿主侧会重新生成侧栏「SSH 远程」里的启动器：别名走 ssh 配置，
    `user@host:port` 直接进 ssh 并跳过菜单。
+
+   ![设置页的主机列表](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/settings-hosts.png)
 
 同一个页面里还有 **「单文件传输上限（MB）」**：默认 256，可填 1–2048，控制
 `remote_upload` / `remote_download` 的单文件上限，保存后立即生效（不用重载插件）。
