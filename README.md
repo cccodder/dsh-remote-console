@@ -305,6 +305,26 @@ https://cccodder.github.io/dsh-remote-console/market/index.json
 >
 > 发现安全问题请走私密渠道，见 [SECURITY.md](https://github.com/cccodder/dsh-remote-console/blob/main/SECURITY.md)。
 
+## 权限与外部依赖
+
+这个插件会执行远端命令、传输文件、连网络，所以把暴露面一次说清（市场/安全扫描也会读这一节）。
+
+| 能力 | 具体行为 | 边界 |
+| --- | --- | --- |
+| 网络 | 只通过用户已认证的 `ssh` 连接（ControlMaster socket，或终端里的 `ssh` 进程），**不建立第二条连接**。更新检查只在打开配置页时访问 GitHub API 与 DSH/pnpm 配置的 npm registry，结果缓存 10 分钟，失败静默 | 离线时终端功能不受影响；socket 消失后所有带外调用 fail-closed |
+| 命令 | agent 通过 `remote_run` / `remote_exec` 在远端执行 shell 命令 | 危险模式（`rm -rf`、`mkfs`、`dd of=/dev`、`shutdown`、fork bomb、`curl \| sh` 等）要一次审批；没有审批服务时拒绝 |
+| 文件 | `remote_upload` / `remote_download` 读本地文件、写远端文件；`remote_read_file` / `remote_write_file` 读写远端文本 | 默认不覆盖、双向 sha256；写 `~/.ssh`、`/etc`、sudoers、shell profile 前审批；路径不允许 `..` |
+| 凭据 | SSH 密码只输入到 `ssh` 自己的提示符；插件不读取、不保存、不重放；`hosts.tsv` 只记 host/user/port（0600） | 审计与日志脱敏，不含终端屏幕内容；`DSH_RC_AUDIT=off` 可关闭审计 |
+| 本地文件 | 数据目录 `~/.dsh/remote-console/`（启动器、会话日志、审计、`hosts.tsv`，文件 0600 / 目录 0700）；设置页保存通过 DSH 配置编辑器写 profile patch（`config.hosts` / `config.maxTransferMB`） | 会话日志在终端结束时删除；审计单独保留、可关闭 |
+| 外部服务 | 无第三方服务，不发送遥测 | — |
+| 生命周期脚本 | 包内没有 `preinstall` / `install` / `postinstall` / `prepare`；运行时 0 依赖，只有 DSH 的 peerDependencies | 安装时不会执行任何包脚本 |
+
+**可执行产物**：包内的 `bin/dsh-ssh` 是菜单/启动器脚本（POSIX sh），只在用户点击主机、DSH 打开终端时被执行为 `ssh` 启动器；不监听端口、不常驻、不接受来自网络的输入。
+
+**失败边界**：终端结束（`ssh` 退出或窗口关闭）后所有 `remote_*` 工具立即失败，不会偷偷重连；没有 ControlMaster 的平台（Windows OpenSSH）退回 PTY：命令与数据在窗口中可见、单文件 ≤1 MiB、无端口转发。
+
+**验收**：`npm test` 176 个测试（含真实 sshd 的 CI）；发布走 GitHub Actions + npm provenance；隔离 profile 的安装/启动验证见 [docs/verify-e2e.md](docs/verify-e2e.md)。
+
 ## 环境变量
 
 | 变量 | 默认 | 作用 |

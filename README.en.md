@@ -317,6 +317,31 @@ If the index does not update or the version does not change after clicking updat
   closing the browser kills it 8 s after the last window hold disappears (a refresh
   reconnects and cancels); if DSH crashes, the PTY master disappears and `ssh` exits on HUP.
 
+## Permissions & external dependencies
+
+This plugin runs remote commands, moves files and uses the network, so here is the whole exposure surface
+in one place (marketplaces and security scanners read this section).
+
+| Capability | What it does | Boundary |
+| --- | --- | --- |
+| Network | Only through the `ssh` connection you already authenticated (the ControlMaster socket, or the `ssh` process inside the terminal) — **no second connection**. The update check contacts the GitHub API and the npm registry DSH/pnpm is configured with, only while the configuration page is open; results are cached for 10 minutes and failures are silent | Terminal features work offline; once the socket is gone every out-of-band call fails closed |
+| Commands | The agent runs shell commands through `remote_run` / `remote_exec` | Dangerous patterns (`rm -rf`, `mkfs`, `dd of=/dev`, `shutdown`, fork bombs, `curl \| sh`, …) require a one-shot approval; with no approval service the command is refused |
+| Files | `remote_upload` / `remote_download` read local files and write remote files; `remote_read_file` / `remote_write_file` read and write remote text | No overwrite by default, sha256 on both sides; writing `~/.ssh`, `/etc`, sudoers or a shell profile asks first; paths containing `..` are refused |
+| Credentials | The SSH password is typed into `ssh`'s own prompt; the plugin never reads, stores or replays it; `hosts.tsv` holds only host/user/port (0600) | Audit and logs are redacted and never contain the screen; `DSH_RC_AUDIT=off` disables the audit trail |
+| Local files | Data dir `~/.dsh/remote-console/` (launchers, session logs, audit, `hosts.tsv`; files 0600, dir 0700); saving the settings page goes through DSH's config editor into the profile patch (`config.hosts` / `config.maxTransferMB`) | Session logs are deleted when the terminal ends; the audit trail is separate and can be disabled |
+| External services | None; no telemetry | — |
+| Lifecycle scripts | No `preinstall` / `install` / `postinstall` / `prepare`; zero runtime dependencies, only DSH peer dependencies | Installing never runs package scripts |
+
+**Executable artifact**: `bin/dsh-ssh` is a POSIX sh menu/launcher. DSH executes it as the `ssh` launcher when
+you click a host; it opens no port, does not stay resident and accepts no network input.
+
+**Failure bounds**: when the terminal ends (`ssh` exits or the window closes) every `remote_*` tool fails
+immediately and never silently reconnects. Platforms without ControlMaster (Windows OpenSSH) fall back to the
+PTY: commands and data become visible in the window, one file is capped at 1 MiB and port forwarding is off.
+
+**Evidence**: `npm test` runs 176 tests including a real sshd in CI; releases go through GitHub Actions with npm
+provenance; isolated-profile install/boot verification is in [docs/verify-e2e.md](docs/verify-e2e.md).
+
 ## Reporting a vulnerability
 
 Please report privately through GitHub Security Advisories, not in a public issue. The full
