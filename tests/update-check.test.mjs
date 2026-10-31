@@ -418,3 +418,17 @@ describe('错误文本（不能渲染成 [object Object]）', () => {
     assert.equal(errorText(undefined), '');
   });
 });
+
+describe('失败原因摘要', () => {
+  it('多行 pnpm 输出只留关键行，完整原文仍可取', async () => {
+    const client = loadClient();
+    const { summarizeError, errorText } = client.__testing;
+    const raw = 'Error: ERR_PNPM_TARBALL_HTTP_STATUS  × adding a new package\n╰─▶ Tarball server returned HTTP 404 for http://127.0.0.1:4873/x.tgz';
+    const summary = summarizeError(raw);
+    assert.ok(summary.length < errorText(raw).length);
+    assert.match(summary, /ERR_PNPM_TARBALL_HTTP_STATUS|HTTP 404/u);
+    assert.ok(!summary.includes('\n'));
+    assert.equal(summarizeError(''), '');
+    assert.ok(summarizeError('x'.repeat(500)).length <= 181);
+  });
+});
