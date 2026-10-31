@@ -606,3 +606,43 @@ describe('更新后自检（客户端）', () => {
     assert.equal(sameVersion('latest', '0.10.5'), false);
   });
 });
+
+describe('设置页 Star 引导', () => {
+  /** 收集渲染树里的所有节点（假 React 的 createElement 返回普通对象）。 */
+  function collect(node, out = []) {
+    if (node === null || node === undefined) return out;
+    if (Array.isArray(node)) {
+      for (const child of node) collect(child, out);
+      return out;
+    }
+    if (typeof node !== 'object') return out;
+    out.push(node);
+    collect(node.children, out);
+    return out;
+  }
+
+  it('设置页底部有 Star 链接（新窗口打开、不触发网络请求）', () => {
+    const client = loadClient();
+    const { ctx, registrations, form } = makeContext();
+    client.apply(ctx);
+
+    const page = registrations.find((entry) => entry.options.name === 'plugins.row.config');
+    assert.ok(page !== undefined, '应该注册 plugins.row.config 设置页');
+
+    const tree = page.component({
+      view: { namespaces: [] },
+      form,
+      refresh: () => {},
+      settings: undefined,
+      revision: () => 3,
+      manager: () => undefined,
+    });
+
+    const anchor = collect(tree).find((node) => node.type === 'a');
+    assert.ok(anchor !== undefined, '设置页应该有 Star 链接');
+    assert.equal(anchor.props.href, 'https://github.com/cccodder/dsh-remote-console');
+    assert.equal(anchor.props.target, '_blank');
+    assert.equal(anchor.props.rel, 'noopener noreferrer');
+    assert.match(JSON.stringify(anchor.children), /Star/u);
+  });
+});
