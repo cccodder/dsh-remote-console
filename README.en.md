@@ -233,6 +233,10 @@ A failed install rolls back to the current version and shows the original error.
 that this change needs a restart, the page says so. Older deployments without
 `remote.pluginManager` disable the button and fall back to options 2/3.
 
+> **Upgrading from 0.10.9 or earlier: uninstall and reinstall once by hand.** Those clients
+> misread the plugin manager's return value, so the update button reports success without
+> changing the version. One-click updates are reliable only from 0.10.10 on.
+
 > **When a restart is needed**: the Host half reloads in place through HMR, but the browser bundle
 > graph is built from the paths resolved at startup. If the current version was installed from a
 > local directory or a `link:` spec, updating switches the source to npm and the paths change, so
