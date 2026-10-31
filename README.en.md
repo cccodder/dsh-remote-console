@@ -208,10 +208,9 @@ patch, the tools write `~/.dsh/remote-console/hosts.tsv`; the panel merges both.
 
 ## Updates
 
-**Noticing a new version**: the panel footer shows the running version (e.g. `v0.6.5`). The
-client asks GitHub for the latest release once (cached for 10 minutes; offline/rate-limit/CORS
-failures are silent) and shows "有新版本 vX.Y.Z" next to it when a newer release exists; the
-link opens the GitHub release page.
+**Noticing a new version**: the panel footer only shows the running version (e.g. `v0.10.10`).
+The panel no longer checks for updates (one network request less, and a fresh panel opens without
+waiting on the network). Version checks and one-click updates live in the settings page below.
 
 **Option 1 — one-click hot update in the settings page (recommended)**
 

@@ -8,6 +8,12 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Changed
+
+- **去掉侧栏面板里的「有新版本」提示**：只保留设置页那套（按安装来源查 + 一键更新，对齐 ds-bot）。
+  面板底部仍显示当前版本，但不再做更新检查——面板首开不会被 GitHub 请求拖慢，也少一处重复的版本来源。
+  旧的 `panel-update` 缓存不再使用（残留键会被忽略）。
+
 ## [0.10.10] - 2026-10-31
 
 ### Fixed
