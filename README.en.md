@@ -45,11 +45,13 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 | Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
 | Audit | Cross-session JSONL: commands, exit codes, approvals, transfer paths + sha256, tunnels; redacted |
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
-| Tests | 180 tests including a real sshd in CI; npm releases carry provenance |
+| Tests | 196 tests including a real sshd in CI; npm releases carry provenance |
 
 ![11-second demo: the human and the agent share one SSH terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/demo.gif)
 
 *11 seconds end to end: pick a host → type the password → the agent runs `date && uname -a` in the same terminal → the human takes over with `cd /tmp` → the agent's `pwd` is still `/tmp` (same PTY). The example host `demo-vm.example.com` is a test sshd.*
+
+If this plugin saves you a few window switches, a [⭐ Star](https://github.com/cccodder/dsh-remote-console) helps other DSH users find it.
 
 ![right sidebar SSH panel: host entries and a new session entry](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
