@@ -335,3 +335,100 @@ describe('安装来源：Remote 返回 {ok, value} 包膜（0.10.6/0.10.7 的真
     assert.deepEqual(await readInstallSpec(null), { status: 'no-manager' });
   });
 });
+
+
+describe('registryPlan 的 Remote 包膜', () => {
+  it('{ok,value} 包膜里的 resolved 会被采用（本地/镜像 registry）', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({
+      registries: async () => ({ ok: true, value: { registry: null, resolved: 'http://127.0.0.1:4873/' } }),
+    });
+    assert.equal(plan[0], 'http://127.0.0.1:4873/');
+  });
+
+  it('ok:false 时回退官方 registry', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({ registries: async () => ({ ok: false, error: { message: 'nope' } }) });
+    assert.deepEqual(plan, ['https://registry.npmjs.org/', 'https://registry.npmmirror.com/']);
+  });
+
+  it('裸返回值（老版本）仍然可用', async () => {
+    const client = loadClient();
+    const { registryPlan } = client.__testing;
+    const plan = await registryPlan({ registries: async () => ({ registry: 'http://127.0.0.1:4874/' }) });
+    assert.equal(plan[0], 'http://127.0.0.1:4874/');
+  });
+});
+
+
+describe('更新失败/中断的提示（组件被销毁后仍留得住）', () => {
+  it('失败的更新状态会落盘，刷新后能读出来并给出原因', async () => {
+    const client = loadClient();
+    const { writeUpdateAttempt, readUpdateAttempt, updateAttemptNotice, clearUpdateAttempt } = client.__testing;
+    await withEnv(async () => {
+      writeUpdateAttempt({ phase: 'failed', target: '0.10.10', error: 'registry 404' });
+      const attempt = readUpdateAttempt();
+      assert.equal(attempt.phase, 'failed');
+      const notice = updateAttemptNotice(attempt, '0.10.9');
+      assert.equal(notice.status, 'failed');
+      assert.match(String(notice.error), /404/u);
+      clearUpdateAttempt();
+      assert.equal(readUpdateAttempt(), undefined);
+    });
+  });
+
+  it('长时间停在 installing 且版本没变 → 中断提示', async () => {
+    const client = loadClient();
+    const { updateAttemptNotice } = client.__testing;
+    const now = Date.now();
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 120 * 1000 }, '0.10.9', now).status,
+      'interrupted',
+    );
+    // 刚点下去 10 秒内不打扰
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 10 * 1000 }, '0.10.9', now).status,
+      'none',
+    );
+    // 已经变成目标版本：不再提示
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 120 * 1000 }, '0.10.10', now).status,
+      'none',
+    );
+    // 过期不翻旧账
+    assert.equal(
+      updateAttemptNotice({ phase: 'failed', target: '0.10.10', error: 'x', at: now - 61 * 60 * 1000 }, '0.10.9', now).status,
+      'none',
+    );
+  });
+});
+
+
+describe('错误文本（不能渲染成 [object Object]）', () => {
+  it('字符串 / {message} / {code,diagnostic} / 嵌套对象都能变成人话', async () => {
+    const client = loadClient();
+    const { errorText } = client.__testing;
+    assert.equal(errorText('boom'), 'boom');
+    assert.equal(errorText({ message: 'registry 404' }), 'registry 404');
+    assert.equal(errorText({ code: 'operation-error', diagnostic: 'pnpm exited 1' }), 'pnpm exited 1');
+    assert.equal(errorText({ code: 'operation-error' }), 'operation-error');
+    assert.match(errorText({ nested: { a: 1 } }), /nested/u);
+    assert.equal(errorText(undefined), '');
+  });
+});
+
+describe('失败原因摘要', () => {
+  it('多行 pnpm 输出只留关键行，完整原文仍可取', async () => {
+    const client = loadClient();
+    const { summarizeError, errorText } = client.__testing;
+    const raw = 'Error: ERR_PNPM_TARBALL_HTTP_STATUS  × adding a new package\n╰─▶ Tarball server returned HTTP 404 for http://127.0.0.1:4873/x.tgz';
+    const summary = summarizeError(raw);
+    assert.ok(summary.length < errorText(raw).length);
+    assert.match(summary, /ERR_PNPM_TARBALL_HTTP_STATUS|HTTP 404/u);
+    assert.ok(!summary.includes('\n'));
+    assert.equal(summarizeError(''), '');
+    assert.ok(summarizeError('x'.repeat(500)).length <= 181);
+  });
+});

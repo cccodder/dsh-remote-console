@@ -8,6 +8,24 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **「点更新 → 刷新后版本没变」的静默失败**：plugin-manager 的 `installBundle` / `removeBundle` 也返回 `{ ok, value }` 包膜，
+  而 `runHotUpdate()` 只读顶层字段，于是 `value.error.code === "already-installed"` 被当成成功：写 pending 标记、刷新页面，
+  实际什么都没装；「卸载 → 安装」的兜底分支也永远不会触发。现在统一解包包膜，并在安装后用 `listBundles` 复核目标版本，
+  没装上就报 `INSTALL_UNCONFIRMED`（如实失败），不再假成功。
+- **本地/镜像 registry 的更新检查也修了**：`manager.registries()` 同样是 `{ ok, value }` 包膜，`registryPlan()` 没解包时
+  会永远回退官方 npmjs，本地私有 registry（Verdaccio）或镜像用户的更新检查查错了地方。现在统一解包；读取失败时
+  官方与镜像都问一遍，不再只锁一条路。
+- **更新失败不再「闪一下就没了」**：更新期间插件会被卸载/重装，设置页组件随之销毁，失败状态只存在内存里，
+  用户只看到「正在安装新版本…」然后回到更新按钮——等于静默失败。现在把更新尝试（installing / failed）落盘，
+  刷新后仍能把失败原文显示出来；长时间停在 installing 且版本没变时提示「上次更新似乎中断了」。另外安装失败后
+- **失败原因不再显示成 `[object Object]`**：DSH 的 error 可能是 `{ message }`、`{ code, diagnostic }` 或嵌套对象，
+  现在统一用 `errorText()` 转人话（message → diagnostic → code → JSON），安装/卸载/更新提示都走它。
+- **失败提示只显示关键行**：pnpm / registry 的报错常常是多行长文，整段塞进设置页会把界面撑爆；现在红字取
+  `ERR_*` 或 `HTTP 4xx/5xx` 附近的关键片段（超过 180 字符截断），完整原文放在 `title` 里 hover 可看。
+  会尝试把插件重新启用（卸载成功、安装失败会把插件留在停用状态），不让用户手里没插件。
+
 ## [0.10.9] - 2026-10-30
 
 ### Fixed
