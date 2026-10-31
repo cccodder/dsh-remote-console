@@ -22,6 +22,8 @@ extension points, so a DSH minor release may need a plugin release.
   刷新后仍能把失败原文显示出来；长时间停在 installing 且版本没变时提示「上次更新似乎中断了」。另外安装失败后
 - **失败原因不再显示成 `[object Object]`**：DSH 的 error 可能是 `{ message }`、`{ code, diagnostic }` 或嵌套对象，
   现在统一用 `errorText()` 转人话（message → diagnostic → code → JSON），安装/卸载/更新提示都走它。
+- **失败提示只显示关键行**：pnpm / registry 的报错常常是多行长文，整段塞进设置页会把界面撑爆；现在红字取
+  `ERR_*` 或 `HTTP 4xx/5xx` 附近的关键片段（超过 180 字符截断），完整原文放在 `title` 里 hover 可看。
   会尝试把插件重新启用（卸载成功、安装失败会把插件留在停用状态），不让用户手里没插件。
 
 ## [0.10.9] - 2026-10-30
