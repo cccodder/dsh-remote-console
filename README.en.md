@@ -45,7 +45,7 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 | Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
 | Audit | Cross-session JSONL: commands, exit codes, approvals, transfer paths + sha256, tunnels; redacted |
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
-| Tests | 196 tests including a real sshd in CI; npm releases carry provenance |
+| Tests | 197 tests including a real sshd in CI; npm releases carry provenance |
 
 ![11-second demo: the human and the agent share one SSH terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/demo.gif)
 
