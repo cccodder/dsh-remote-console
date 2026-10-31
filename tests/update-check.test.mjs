@@ -361,3 +361,46 @@ describe('registryPlan 的 Remote 包膜', () => {
     assert.equal(plan[0], 'http://127.0.0.1:4874/');
   });
 });
+
+
+describe('更新失败/中断的提示（组件被销毁后仍留得住）', () => {
+  it('失败的更新状态会落盘，刷新后能读出来并给出原因', async () => {
+    const client = loadClient();
+    const { writeUpdateAttempt, readUpdateAttempt, updateAttemptNotice, clearUpdateAttempt } = client.__testing;
+    await withEnv(async () => {
+      writeUpdateAttempt({ phase: 'failed', target: '0.10.10', error: 'registry 404' });
+      const attempt = readUpdateAttempt();
+      assert.equal(attempt.phase, 'failed');
+      const notice = updateAttemptNotice(attempt, '0.10.9');
+      assert.equal(notice.status, 'failed');
+      assert.match(String(notice.error), /404/u);
+      clearUpdateAttempt();
+      assert.equal(readUpdateAttempt(), undefined);
+    });
+  });
+
+  it('长时间停在 installing 且版本没变 → 中断提示', async () => {
+    const client = loadClient();
+    const { updateAttemptNotice } = client.__testing;
+    const now = Date.now();
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 120 * 1000 }, '0.10.9', now).status,
+      'interrupted',
+    );
+    // 刚点下去 10 秒内不打扰
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 10 * 1000 }, '0.10.9', now).status,
+      'none',
+    );
+    // 已经变成目标版本：不再提示
+    assert.equal(
+      updateAttemptNotice({ phase: 'installing', target: '0.10.10', at: now - 120 * 1000 }, '0.10.10', now).status,
+      'none',
+    );
+    // 过期不翻旧账
+    assert.equal(
+      updateAttemptNotice({ phase: 'failed', target: '0.10.10', error: 'x', at: now - 61 * 60 * 1000 }, '0.10.9', now).status,
+      'none',
+    );
+  });
+});
