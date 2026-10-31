@@ -17,6 +17,10 @@ extension points, so a DSH minor release may need a plugin release.
 - **本地/镜像 registry 的更新检查也修了**：`manager.registries()` 同样是 `{ ok, value }` 包膜，`registryPlan()` 没解包时
   会永远回退官方 npmjs，本地私有 registry（Verdaccio）或镜像用户的更新检查查错了地方。现在统一解包；读取失败时
   官方与镜像都问一遍，不再只锁一条路。
+- **更新失败不再「闪一下就没了」**：更新期间插件会被卸载/重装，设置页组件随之销毁，失败状态只存在内存里，
+  用户只看到「正在安装新版本…」然后回到更新按钮——等于静默失败。现在把更新尝试（installing / failed）落盘，
+  刷新后仍能把失败原文显示出来；长时间停在 installing 且版本没变时提示「上次更新似乎中断了」。另外安装失败后
+  会尝试把插件重新启用（卸载成功、安装失败会把插件留在停用状态），不让用户手里没插件。
 
 ## [0.10.9] - 2026-10-30
 
