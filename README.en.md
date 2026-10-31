@@ -47,6 +47,10 @@ Then: right sidebar → "SSH remote" → pick a host → you type the password �
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
 | Tests | 180 tests including a real sshd in CI; npm releases carry provenance |
 
+![11-second demo: the human and the agent share one SSH terminal](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/demo.gif)
+
+*11 seconds end to end: pick a host → type the password → the agent runs `date && uname -a` in the same terminal → the human takes over with `cd /tmp` → the agent's `pwd` is still `/tmp` (same PTY). The example host `demo-vm.example.com` is a test sshd.*
+
 ![right sidebar SSH panel: host entries and a new session entry](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
 *The "SSH remote" panel: click a host to ssh and type your password, or use "New session" with `user@ip`. The example host `demo-vm.example.com` is a local test sshd (`example.com` is the reserved documentation domain, not a real machine).*
