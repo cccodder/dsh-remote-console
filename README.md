@@ -44,11 +44,13 @@ dsh plugin --profile web add dsh-remote-console
 | 终端 | 复用 DSH 原生终端，人机共用 PTY；退出码由 shell 钩子（OSC）回传，不靠猜提示符 |
 | 审计 | 跨会话 JSONL：命令、退出码、审批结果、传输路径 + sha256、转发；写入前脱敏 |
 | 依赖 | 运行时 0 依赖；不改 DSH；Node ≥ 20 |
-| 测试 | 180 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
+| 测试 | 196 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
 
 ![11 秒演示：人和 agent 共用一个 SSH 终端](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/demo.gif)
 
 *11 秒看完全程：选主机 → 输密码 → agent 在同一个终端里跑 `date && uname -a` → 人接手 `cd /tmp` → agent 跑 `pwd` 仍是 `/tmp`（同一个 PTY）。示例主机 `demo-vm.example.com` 是测试用的假 sshd。*
+
+如果这个插件帮你少切了几次窗口，给个 [⭐ Star](https://github.com/cccodder/dsh-remote-console) 支持一下——这能让更多在 DSH 里连远程的人找到它。
 
 ![侧栏「SSH 远程」面板：主机入口与新建会话](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
