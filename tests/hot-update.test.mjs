@@ -156,6 +156,19 @@ describe('一键热更新的 manager 返回值（{ok,value} 包膜）', () => {
 
 
 describe('更新失败后的收尾', () => {
+  it('安装失败的 error 是对象时，返回的 error 是可读字符串（不是 [object Object]）', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const manager = {
+      installBundle: async () => ({ ok: false, error: { code: 'operation-error', diagnostic: 'pnpm exited 1' } }),
+      removeBundle: async () => ({ ok: true, value: { application: 'applied' } }),
+    };
+    const result = await runHotUpdate(manager, plan('0.10.10'), '0.10.9');
+    assert.equal(result.ok, false);
+    assert.ok(!String(result.error).includes('[object Object]'));
+    assert.match(String(result.error), /pnpm exited 1/u);
+  });
+
   it('安装失败时会尝试把插件重新启用（避免留在停用状态）', async () => {
     const client = loadClient();
     const { runHotUpdate } = client.__testing;
