@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-10-31
+
 ### Changed
 
 - **去掉侧栏面板里的「有新版本」提示**：只保留设置页那套（按安装来源查 + 一键更新，对齐 ds-bot）。
@@ -466,7 +468,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.10...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...HEAD
+[0.10.11]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.10...v0.10.11
 [0.10.10]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.9...v0.10.10
 [0.10.9]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.7...v0.10.8
