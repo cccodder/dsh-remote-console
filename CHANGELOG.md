@@ -20,6 +20,8 @@ extension points, so a DSH minor release may need a plugin release.
 - **更新失败不再「闪一下就没了」**：更新期间插件会被卸载/重装，设置页组件随之销毁，失败状态只存在内存里，
   用户只看到「正在安装新版本…」然后回到更新按钮——等于静默失败。现在把更新尝试（installing / failed）落盘，
   刷新后仍能把失败原文显示出来；长时间停在 installing 且版本没变时提示「上次更新似乎中断了」。另外安装失败后
+- **失败原因不再显示成 `[object Object]`**：DSH 的 error 可能是 `{ message }`、`{ code, diagnostic }` 或嵌套对象，
+  现在统一用 `errorText()` 转人话（message → diagnostic → code → JSON），安装/卸载/更新提示都走它。
   会尝试把插件重新启用（卸载成功、安装失败会把插件留在停用状态），不让用户手里没插件。
 
 ## [0.10.9] - 2026-10-30
