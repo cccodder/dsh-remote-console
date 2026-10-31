@@ -153,3 +153,34 @@ describe('一键热更新的 manager 返回值（{ok,value} 包膜）', () => {
     assert.match(String(result.error), /bundle in use/u);
   });
 });
+
+
+describe('更新失败后的收尾', () => {
+  it('安装失败时会尝试把插件重新启用（避免留在停用状态）', async () => {
+    const client = loadClient();
+    const { runHotUpdate } = client.__testing;
+    const calls = [];
+    let first = true;
+    const manager = {
+      installBundle: async (spec) => {
+        calls.push(['install', spec]);
+        // 第一次：HMR 下已安装 → 走卸载；第二次（真正装新版本）：失败
+        if (first) {
+          first = false;
+          return { ok: true, value: { application: 'failed', error: { code: 'already-installed' } } };
+        }
+        if (spec.includes('0.10.10')) return { ok: true, value: { application: 'failed', error: { message: 'registry 404' } } };
+        return { ok: true, value: { application: 'applied' } };
+      },
+      removeBundle: async () => ({ ok: true, value: { application: 'applied' } }),
+      setBundleEnabled: async (name, enabled) => {
+        calls.push(['enable', name, enabled]);
+        return { ok: true, value: { changed: true } };
+      },
+      listBundles: async () => ({ ok: true, value: [{ name: PACKAGE, version: '0.10.9' }] }),
+    };
+    const result = await runHotUpdate(manager, plan('0.10.10'), '0.10.9');
+    assert.equal(result.ok, false);
+    assert.ok(calls.some(([kind, , enabled]) => kind === 'enable' && enabled === true), '失败后应重新启用插件');
+  });
+});
