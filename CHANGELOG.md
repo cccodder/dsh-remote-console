@@ -8,6 +8,18 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-10-31
+
+### Added
+
+- **设置页底部的 Star 引导**：侧栏「插件」→ dsh-remote-console 的主机列表表单底部多一行
+  「用着顺手？给个 ⭐ Star」，新窗口打开 GitHub 仓库。纯展示链接，不发网络请求、不改任何设置逻辑。
+- README（中/英）在演示 GIF 下方加了一行 Star 引导；npm 页面上的 README 随本版发布一起刷新。
+
+### Changed
+
+- 文档校正：README 的测试数从 196 改为 197（设置页 Star 链接新增 1 个渲染测试）。
+
 ## [0.10.11] - 2026-10-31
 
 ### Changed
@@ -468,7 +480,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...HEAD
+[0.10.12]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...v0.10.12
 [0.10.11]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.10...v0.10.11
 [0.10.10]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.9...v0.10.10
 [0.10.9]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.8...v0.10.9
