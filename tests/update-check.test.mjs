@@ -404,3 +404,17 @@ describe('更新失败/中断的提示（组件被销毁后仍留得住）', () 
     );
   });
 });
+
+
+describe('错误文本（不能渲染成 [object Object]）', () => {
+  it('字符串 / {message} / {code,diagnostic} / 嵌套对象都能变成人话', async () => {
+    const client = loadClient();
+    const { errorText } = client.__testing;
+    assert.equal(errorText('boom'), 'boom');
+    assert.equal(errorText({ message: 'registry 404' }), 'registry 404');
+    assert.equal(errorText({ code: 'operation-error', diagnostic: 'pnpm exited 1' }), 'pnpm exited 1');
+    assert.equal(errorText({ code: 'operation-error' }), 'operation-error');
+    assert.match(errorText({ nested: { a: 1 } }), /nested/u);
+    assert.equal(errorText(undefined), '');
+  });
+});
