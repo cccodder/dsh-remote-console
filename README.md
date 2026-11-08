@@ -62,7 +62,7 @@ dsh plugin --profile web add dsh-remote-console
 
 ## 目录
 
-[它解决什么](#它解决什么) · [安装](#安装) · [用法](#用法) · [管理主机列表](#管理主机列表) · [更新](#更新) · [安全模型](#安全模型) · [环境变量](#环境变量) · [故障排查](#故障排查) · [兼容性与限制](#兼容性与限制) · [Windows](#windows实验性) · [性能基线](#性能基线loopback) · [开发与测试](#开发与测试) · [数据目录](#数据目录) · [许可](#许可)
+[它解决什么](#它解决什么) · [安装](#安装) · [用法](#用法) · [管理主机列表](#管理主机列表) · [更新](#更新) · [安全模型](#安全模型) · [环境变量](#环境变量) · [故障排查](#故障排查) · [兼容性与限制](#兼容性与限制) · [Windows](#windows) · [性能基线](#性能基线loopback) · [开发与测试](#开发与测试) · [数据目录](#数据目录) · [许可](#许可)
 
 ## 它解决什么
 
@@ -370,7 +370,7 @@ sudo dnf install -y openssh-clients
 # macOS 系统自带 /usr/bin/ssh，一般不需要安装
 ```
 
-Windows 目前不支持，见 [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)。
+Windows 用系统自带的 OpenSSH 客户端（Windows 10/11 的「可选功能」里叫 OpenSSH 客户端），检查方式一样；平台差异见 [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)。
 
 ### 2. `Bad owner or permissions on ...`
 
@@ -504,15 +504,16 @@ cat ~/.dsh/remote-console/selftest.log
   客户端 `ctx.webTerminals.launchShells`），这与社区插件的常用手法一致，但**不是文档化扩展点**；
   DSH 改动这些内部实现时需要同步适配（`package.json` 的 `engines.dsh` 声明了已验证范围
   `>=0.2.1-rc.2 <0.3.0-0`，DSH 0.3.0 未验证）。
-- 平台：macOS、Linux 完整支持；**Windows 已支持（实验性）**——终端照常可用，工具在没有
-  ControlMaster 时自动退回 PTY 通道（详见下面的「Windows（实验性）」与
+- 平台：macOS、Linux 完整支持；**Windows 已支持**——终端照常可用，工具在没有
+  ControlMaster 时自动退回 PTY 通道；这条 PTY 回退路径已由 Windows 用户实测通过（见
+  [issue #26](https://github.com/cccodder/dsh-remote-console/issues/26)），详见下面的「Windows」与
   [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#平台)）。
 - 远端默认用 `bash -li` 启动以挂 `PROMPT_COMMAND` 钩子；远端没有 bash 时自动退回哨兵模式
   （窗口里会看到一行 `__dsh` 包装命令），功能不受影响、只是观感略差。
 - 终端输出没有做全终端模拟：行内覆盖用「保留最后一个 `\r` 之后内容」的简化处理，
   极端 TUI 场景下 `remote_screen` 可能与真实画面有出入，命令结果以 `remote_run`/`remote_exec` 为准。
 
-## Windows（实验性）
+## Windows
 
 Windows 走的是另一条连接路径：Windows 版 OpenSSH **不支持 ControlMaster**，拿不到可复用的
 socket，所以插件用 Node 版包装器（`bin/dsh-ssh.mjs`）起终端，agent 工具在没有 socket 时
@@ -528,8 +529,11 @@ socket，所以插件用 Node 版包装器（`bin/dsh-ssh.mjs`）起终端，age
   `DSH_RC_NODE` → 自带 Node 路径的顺序解析（issue #26）。
 - Windows 的 ConPTY 会在一次大写入里丢帧，所以 PTY 写入按 8 字符 / 12ms 分片（可用
   `DSH_RC_WRITE_SLICE` / `DSH_RC_WRITE_GAP_MS` 调）；代价是长命令与 PTY 传输会慢一些。
-- 实验性：本机没有 Windows 环境，逻辑用 Linux 上的等价路径验证过（Node 包装器、PTY 分块
-  读写、通道选择、工具自动回退）；真实 Windows conpty 的窗口观感与长行限制还需要真机确认。
+- 验证状态：已由 Windows 用户实测通过。issue #26 的报告者在 Windows 10 Pro 22H2 + DSH Desktop
+  0.2.1-rc.3 上用 0.10.12 复测四项全过——启动不再退出、`echo 1234567890abcdefghijklmnopqrstuvwxyz`
+  输出完整、长路径 `cd && pwd` 一次成功、重启 App 后仍正常（见
+  [issue #26](https://github.com/cccodder/dsh-remote-console/issues/26)）。这是那一台机器的结果：
+  其他 Windows 版本、真实 conpty 的窗口观感与长行限制没有逐一覆盖。
 
 ## 性能基线（loopback）
 

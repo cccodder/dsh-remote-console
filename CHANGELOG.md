@@ -8,6 +8,13 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Changed
+
+- **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
+  DSH Desktop 0.2.1-rc.3 上用 0.10.12 复测四项全过（启动不退出、长命令输出完整、长路径
+  `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
+  顺手修掉英文能力矩阵里仍把 Windows 标成 ❌ 的 7 行、平台表的 Windows 行，以及两处「Windows 尚未支持」的过期结论。
+
 ## [0.10.12] - 2026-10-31
 
 ### Added

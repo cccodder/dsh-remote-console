@@ -1,4 +1,4 @@
-# 兼容性矩阵（0.7.0）
+# 兼容性矩阵（0.10.12）
 
 插件包住的是 DSH 的终端服务（不是文档化扩展点），所以「支持哪些 DSH / 平台 / 能力」需要用验证结果
 说话，而不是「理论上能用」。本文列出验证过的范围、没验证的部分，以及安装时会踩的坑。
@@ -7,8 +7,8 @@
 
 - 支持的 DSH：`>=0.2.1-rc.2 <0.3.0-0`（`package.json` 的 `engines.dsh`，`<0.3.0-0` 把 0.3.0
   及其预发布版本一并排除）。
-- 支持的平台：macOS、Linux（CI 只覆盖 Linux；macOS 按发版前真机清单验证）。**Windows 尚未支持**，
-  计划在下个版本支持。
+- 支持的平台：macOS、Linux（CI 只覆盖 Linux；macOS 按发版前真机清单验证）。**Windows 已支持
+  （实验性，PTY 回退）**：已由用户在真机复测通过（[issue #26](https://github.com/cccodder/dsh-remote-console/issues/26)，0.10.12）。
 - 文件传输、文件读写、端口转发都建立在**一个活着的 SSH 终端**上：它们复用该终端的
   ControlMaster socket；终端结束后立即失败（`BatchMode=yes`，fail closed），不会重新认证。
 
@@ -30,7 +30,7 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | --- | --- | --- |
 | macOS（Intel / Apple Silicon） | ✅ 支持 | 包装器保持 POSIX bash + BSD `date` 兼容（0.6.1 修过 `date -Is`）；真机检查项见 [verify-e2e.md](verify-e2e.md) 与 [release-checklist.md](dev/release-checklist.md)。CI 不跑 macOS |
 | Linux（x64 / arm64） | ✅ 支持 | CI 在 `ubuntu-latest` 跑测试；插件本身没有平台相关二进制 |
-| Windows | ✅ 支持（实验性） | `bin/dsh-ssh.mjs`（Node 包装器）替代 bash 脚本；Windows OpenSSH 没有 ControlMaster，工具自动退回 PTY 通道（传输 ≤1 MiB），端口转发不可用。本机无 Windows 环境，逻辑用 Linux 等价路径验证（Node 包装器、PTY 分块读写、通道选择、工具自动回退），真实 conpty 观感待真机确认 |
+| Windows | ✅ 支持（实验性） | `bin/dsh-ssh.mjs`（Node 包装器）替代 bash 脚本；Windows OpenSSH 没有 ControlMaster，工具自动退回 PTY 通道（传输 ≤1 MiB），端口转发不可用。已由 Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 的用户在 0.10.12 上复测通过（启动不退出、长命令完整、长路径 cd && pwd、重启后正常；见 issue #26）；其他 Windows 版本与真实 conpty 观感未逐一验证 |
 | 其他（BSD 等） | ❌ 未验证 | 理论上包装器可移植，但没有测试记录 |
 
 ## 能力矩阵
@@ -112,7 +112,7 @@ peer 依赖不随插件安装，来自运行中的 DSH。manifest 有 `engines.d
 
 ---
 
-# Compatibility matrix (0.7.0)
+# Compatibility matrix (0.10.12)
 
 The plugin wraps DSH terminal services that are not documented extension points, so "what works"
 is defined by verification, not by theory. This page lists the verified range, what is **not**
@@ -123,7 +123,8 @@ verified, and the installation traps.
 - Supported DSH: `>=0.2.1-rc.2 <0.3.0-0` (`engines.dsh`; `<0.3.0-0` also excludes 0.3.0
   prereleases).
 - Supported platforms: macOS and Linux (CI covers Linux only; macOS follows the pre-release
-  real-device checklist). **Windows is not supported yet**; support is planned for the next release.
+  real-device checklist). **Windows is supported (experimental, PTY fallback)**: a user verified it
+  on a real device ([issue #26](https://github.com/cccodder/dsh-remote-console/issues/26), 0.10.12).
 - File transfer, remote file read/write and port forwarding ride on **one live SSH terminal**:
   they reuse that terminal's ControlMaster socket. When the terminal ends they fail immediately
   (`BatchMode=yes`, fail closed) and do not re-authenticate.
@@ -146,7 +147,7 @@ the decision). A wrong range is refused outright — do not rely on "install it 
 | --- | --- | --- |
 | macOS (Intel / Apple Silicon) | ✅ Supported | The wrapper stays POSIX-bash and BSD-`date` compatible (the `date -Is` bug was fixed in 0.6.1); manual checks are in [verify-e2e.md](verify-e2e.md) and [release-checklist.md](dev/release-checklist.md). CI does not run macOS |
 | Linux (x64 / arm64) | ✅ Supported | CI runs the tests on `ubuntu-latest`; the plugin ships no platform-specific binaries |
-| Windows | ❌ Not supported | `bin/dsh-ssh` is a bash wrapper and needs a system `ssh`; WSL / Git Bash paths are unverified. Planned for the next release (no date promised) |
+| Windows | ✅ Supported (experimental) | `bin/dsh-ssh.mjs` (Node wrapper) replaces the bash launcher; Windows OpenSSH has no ControlMaster, so tools fall back to the PTY channel (≤1 MiB transfers) and port forwarding is unavailable. Verified by a user on Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 with 0.10.12 (issue #26); other Windows builds and conpty rendering are not individually verified |
 | Others (BSD, ...) | ❌ Not verified | The wrapper is probably portable, but there is no test record |
 
 ## Capabilities
@@ -157,14 +158,14 @@ plugin update. Platform columns assume a supported `engines.dsh` version: outsid
 
 | Capability | DSH internals / mechanism | macOS | Linux | Windows | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Shared terminal (human and agent in the same PTY) | `ctx.subprocess.spawnTerminal`, `ctx.terminalController.shells/retain`, client `ctx.webTerminals.launchShells` | ✅ | ✅ | ❌ | Core capability; rendering and input reuse DSH's terminal |
-| The six original tools (`remote_status` / `remote_run` / `remote_exec` / `remote_screen` / `remote_log` / `remote_close`) | `defineTool`; `remote_run` uses the PTY + OSC exit code; `remote_exec` reuses the ControlMaster socket | ✅ | ✅ | ❌ | Needs a live terminal; `remote_exec` is out of band (invisible in the window, still in the unified log) |
-| File transfer (`remote_upload` / `remote_download`) | The authenticated ControlMaster socket (the `remote_exec` channel) | ✅ | ✅ | ❌ | Requires a live SSH terminal; streams and verifies sha256 on both sides; refuses to overwrite by default; 256 MB per file by default, configurable 1-2048 MB in the settings page; `remote_upload` asks for approval before writing sensitive remote paths (`~/.ssh`, `/etc`, sudoers, shell profiles) |
-| Remote file read/write (`remote_read_file` / `remote_write_file`) | The authenticated ControlMaster socket | ✅ | ✅ | ❌ | Read: 128 KB default, 256 KB max, binary refused; write: ≤256 KB UTF-8 over stdin, never in the terminal window; sensitive paths need approval |
+| Shared terminal (human and agent in the same PTY) | `ctx.subprocess.spawnTerminal`, `ctx.terminalController.shells/retain`, client `ctx.webTerminals.launchShells` | ✅ | ✅ | ✅ (experimental) | Core capability; rendering and input reuse DSH's terminal. Windows uses the Node wrapper `bin/dsh-ssh.mjs` |
+| All 16 tools (6 terminal / 4 file / 1 forward / 2 audit / 3 host list) | `defineTool`; `remote_run` uses the PTY + OSC exit code; `remote_exec` reuses the ControlMaster socket | ✅ | ✅ | ✅ (PTY fallback) | Needs a live terminal; `remote_exec` is out of band (invisible in the window, still in the unified log). Without ControlMaster on Windows it uses the PTY: commands and data are visible in the window, stdout/stderr merge, transfers ≤1 MiB |
+| File transfer (`remote_upload` / `remote_download`) | The authenticated ControlMaster socket (the `remote_exec` channel) | ✅ | ✅ | ✅ (PTY, ≤1 MiB) | Requires a live SSH terminal; streams and verifies sha256 on both sides; refuses to overwrite by default; 256 MB per file by default, configurable 1-2048 MB in the settings page; `remote_upload` asks for approval before writing sensitive remote paths (`~/.ssh`, `/etc`, sudoers, shell profiles) |
+| Remote file read/write (`remote_read_file` / `remote_write_file`) | The authenticated ControlMaster socket | ✅ | ✅ | ✅ (PTY, ≤1 MiB) | Read: 128 KB default, 256 KB max, binary refused; write: ≤256 KB UTF-8 over stdin, never in the terminal window; sensitive paths need approval |
 | Port forwarding (`remote_forward` start/stop/list) | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>` | ✅ | ✅ | ❌ | Loopback bind only — other machines on the LAN cannot reach it; stops when the terminal ends or `remote_close` runs; no re-authentication |
-| Dangerous / terminal-ending command approval | DSH `ctx.approval` | ✅ | ✅ | ❌ | Fails closed when no approval service is mounted (headless); `DSH_RC_DANGER_GUARD=off` disables it explicitly |
-| Closing revokes access | `ctx.terminalController.retain` window holds | ✅ | ✅ | ❌ | Closing the tab kills the process tree; closing the browser has an 8 s grace; a DSH crash drops the PTY and ssh exits on HUP |
-| Plugin market "update available" | GitHub Release lookup (6 h cache) + market index format 1 | ✅ | ✅ | ❌ | Offline / rate-limit / CORS failures stay silent; the Update entry depends on the market index |
+| Dangerous / terminal-ending command approval | DSH `ctx.approval` | ✅ | ✅ | ✅ | Fails closed when no approval service is mounted (headless); `DSH_RC_DANGER_GUARD=off` disables it explicitly |
+| Closing revokes access | `ctx.terminalController.retain` window holds | ✅ | ✅ | ✅ | Closing the tab kills the process tree; closing the browser has an 8 s grace; a DSH crash drops the PTY and ssh exits on HUP |
+| Plugin market "update available" | GitHub Release lookup (6 h cache) + market index format 1 | ✅ | ✅ | ✅ | Offline / rate-limit / CORS failures stay silent; the Update entry depends on the market index |
 
 ## Peer dependencies
 
