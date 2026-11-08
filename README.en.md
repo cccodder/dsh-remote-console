@@ -63,7 +63,7 @@ If this plugin saves you a few window switches, a [⭐ Star](https://github.com/
 
 ## Contents
 
-[Why](#why) · [Install](#install) · [Usage](#usage) · [Managing the host list](#managing-the-host-list) · [Updates](#updates) · [Security](#security) · [Environment variables](#environment-variables) · [Troubleshooting](#troubleshooting) · [Compatibility](#compatibility) · [Windows](#windows-experimental) · [Benchmark](#benchmark-loopback) · [Development](#development) · [Data directory](#data-directory) · [License](#license)
+[Why](#why) · [Install](#install) · [Usage](#usage) · [Managing the host list](#managing-the-host-list) · [Updates](#updates) · [Security](#security) · [Environment variables](#environment-variables) · [Troubleshooting](#troubleshooting) · [Compatibility](#compatibility) · [Windows](#windows) · [Benchmark](#benchmark-loopback) · [Development](#development) · [Data directory](#data-directory) · [License](#license)
 
 ## Why
 
@@ -395,7 +395,7 @@ sudo dnf install -y openssh-clients
 # macOS ships /usr/bin/ssh, so it normally needs no install
 ```
 
-Windows is supported experimentally (PTY fallback, no port forwarding); see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms).
+On Windows the plugin uses the OpenSSH client that ships with the OS (an optional feature in Windows 10/11), so the check is the same; for platform differences see [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms).
 
 ### 2. `Bad owner or permissions on ...`
 
@@ -541,16 +541,17 @@ notes) is in [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blo
   the common community-plugin approach but **not a documented extension point**; DSH
   changes to those internals need a matching update (`engines.dsh` declares the tested range
   `>=0.2.1-rc.2 <0.3.0-0`; DSH 0.3.0 is not verified).
-- Platforms: macOS and Linux are fully supported; **Windows is supported (experimental)** — the
-  terminal works, and tools fall back to the PTY channel when there is no ControlMaster (see
-  "Windows (experimental)" below and
+- Platforms: macOS and Linux are fully supported; **Windows is supported** — the terminal works,
+  and tools fall back to the PTY channel when there is no ControlMaster. A Windows user verified that
+  fallback on a real machine (see
+  [issue #26](https://github.com/cccodder/dsh-remote-console/issues/26)); details in "Windows" below and
   [docs/compat.md](https://github.com/cccodder/dsh-remote-console/blob/main/docs/compat.md#platforms)).
 - Remote shells start as `bash -li` to install the `PROMPT_COMMAND` hook. Without bash the
   plugin falls back to sentinel framing — same capability, slightly noisier screen.
 - No full terminal emulation: in-line overwrite is simplified, so `remote_screen` can
   differ from the real screen in extreme TUI cases; trust `remote_run`/`remote_exec` for results.
 
-## Windows (experimental)
+## Windows
 
 Windows takes a different connection path: its OpenSSH build has **no ControlMaster**, so there is
 no reusable socket. The plugin starts the terminal through a Node wrapper (`bin/dsh-ssh.mjs`) and
@@ -571,9 +572,13 @@ the agent tools automatically fall back to the PTY channel when no socket exists
 - Windows ConPTY drops frames on a single large write, so PTY writes are sliced into 8-character
   chunks with a 12 ms gap (tunable via `DSH_RC_WRITE_SLICE` / `DSH_RC_WRITE_GAP_MS`); long commands
   and PTY transfers are correspondingly slower.
-- Experimental: there is no Windows machine on the build host, so the logic is verified through
-  equivalent paths on Linux (Node wrapper, PTY chunked I/O, transport selection, automatic tool
-  fallback); the real Windows conpty rendering and line-length limits still need a device check.
+- Verified on a real device: the reporter of issue #26 re-ran four checks on Windows 10 Pro 22H2 +
+  DSH Desktop 0.2.1-rc.3 with 0.10.12 and all passed — the terminal no longer exits on launch,
+  `echo 1234567890abcdefghijklmnopqrstuvwxyz` comes through complete, a long-path `cd && pwd`
+  succeeds in one shot, and it still works after restarting the app (see
+  [issue #26](https://github.com/cccodder/dsh-remote-console/issues/26)). That is one machine's
+  result: other Windows builds, real conpty rendering and line-length limits are not individually
+  covered.
 
 ## Benchmark (loopback)
 
