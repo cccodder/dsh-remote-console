@@ -23,6 +23,10 @@ extension points, so a DSH minor release may need a plugin release.
   占用，百分比由采集到的数字算出来而不是另写；读不到就明说读不到。不装包、不留常驻进程，
   Windows 的 PTY 回退通道同样可用。
 
+- **新增 `remote_audit_timeline`（审计回放）**：把审计记录按会话聚合：起止时间、命令数与失败数、传输、
+  转发、审批，以及最近一条命令。回答「这段时间在这台机器上做了什么」不用再翻原始 JSONL；
+  不还原屏幕内容，也不包含用户手敲的文本。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +

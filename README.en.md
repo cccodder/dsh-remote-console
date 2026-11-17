@@ -52,7 +52,7 @@ The trade-off is honest: one terminal per session, no second pane; rendering, in
 
 | | |
 | --- | --- |
-| Agent tools | 17: terminal 6 · files 4 · port forwarding 1 · audit 2 · host list 3 · health 1 |
+| Agent tools | 18: terminal 6 · files 4 · port forwarding 1 · audit 3 · host list 3 · health 1 |
 | File transfer | Streamed with sha256 on both sides; 256 MB per file by default, 1–2048 MB in the settings page |
 | Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
 | Panel | Search, recency ordering, empty-state guidance; common ssh errors translated into what to check next |
@@ -150,6 +150,7 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_screen(lines)` | Current screen as plain text (ANSI stripped) |
 | `remote_log(cursor)` | Incremental read of the unified JSONL log (human commands, agent commands, both outputs) |
 | `remote_metrics(console_pid?)` | Read-only health snapshot: uptime, load per core, memory, root filesystem; one ssh call, no package, nothing resident |
+| `remote_audit_timeline(since?, session?, limit?)` | Replay the audit trail per session: window, commands and failures, transfers, tunnels, approvals, last command; no screen content |
 | `remote_audit_read(cursor?, tool?)` | Read the **cross-session** audit trail: commands and exit codes, approvals, transfers, forwards, session start/end (no screen content) |
 | `remote_audit_export(local_path, format?)` | Export the audit trail to a local `jsonl` / `csv` file (0600) for archiving or review |
 | `remote_close()` | Close the ssh master, clean up socket/rendezvous files, stop this console's tunnels |

@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -220,5 +220,42 @@ describe('主机健康快照', () => {
     const text = formatMetrics(parseMetrics('uptime=0\ncpu=0'));
     assert.match(text, /memory: 读不到 \/proc\/meminfo/);
     assert.match(text, /disk \/: 读不到 df 输出/);
+  });
+});
+
+describe('审计时间线', () => {
+  const records = [
+    { t: 1000, pid: '1', session: 's-a', tool: 'session', action: 'start' },
+    { t: 1100, pid: '1', session: 's-a', tool: 'remote_run', exit: 0, cmd: 'ls' },
+    { t: 1200, pid: '1', session: 's-a', tool: 'remote_upload', path: '/tmp/x' },
+    { t: 1300, pid: '1', session: 's-a', tool: 'remote_run', exit: 1, cmd: 'false' },
+    { t: 1400, pid: '1', session: 's-a', tool: 'remote_forward', action: 'forward-start' },
+    { t: 2000, pid: '2', session: 's-b', tool: 'remote_exec', exit: 0, cmd: 'date' },
+  ];
+
+  it('按会话聚合，命令/失败/传输/转发分开计数', () => {
+    const groups = summarizeTimeline(records);
+    assert.equal(groups.length, 2);
+    const a = groups.find((group) => group.session === 's-a');
+    assert.equal(a.commands, 2);
+    assert.equal(a.failed, 1);
+    assert.equal(a.transfers, 1);
+    assert.equal(a.forwards, 1);
+  });
+
+  it('新的会话排在前面，limit 生效', () => {
+    assert.deepEqual(summarizeTimeline(records).map((group) => group.session), ['s-b', 's-a']);
+    assert.equal(summarizeTimeline(records, { limit: 1 }).length, 1);
+  });
+
+  it('输出里带时间范围和最近一条命令，不输出屏幕内容', () => {
+    const text = formatTimeline(summarizeTimeline(records));
+    assert.match(text, /命令：2 条（失败 1）/);
+    assert.match(text, /最近一条：remote_run exit 1：false/);
+    assert.ok(!text.includes('\u001b'), '不应包含终端控制字符');
+  });
+
+  it('空时间线给明确说明', () => {
+    assert.match(formatTimeline([]), /timeline: 0 个会话/);
   });
 });
