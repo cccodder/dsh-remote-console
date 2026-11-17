@@ -55,7 +55,7 @@ The trade-off is honest: one terminal per session, no second pane; rendering, in
 | Agent tools | 18: terminal 6 · files 4 · port forwarding 1 · audit 3 · host list 3 · health 1 |
 | File transfer | Streamed with sha256 on both sides; 256 MB per file by default, 1–2048 MB in the settings page |
 | Terminal | DSH's native terminal, one shared PTY; exit codes come from a shell hook (OSC), not prompt guessing |
-| Panel | Search, recency ordering, empty state, error translation; status line, consoles and tunnels, recent activity, file browsing with upload/download/delete |
+| Panel | Search, recency ordering, empty state, error translation; status line (15s refresh), consoles and tunnels, recent activity, file browsing and text editing |
 | Audit | Cross-session JSONL: commands, exit codes, approvals, transfer paths + sha256, tunnels; redacted |
 | Dependencies | 0 runtime dependencies; no DSH patch; Node ≥ 20 |
 | Tests | 197 tests including a real sshd in CI; npm releases carry provenance |
