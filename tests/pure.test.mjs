@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -174,5 +174,27 @@ describe('危险命令分级', () => {
     assert.match(text, /递归强制删除（数据会被删除，无法恢复）/);
     assert.match(text, /强制推送覆盖远端历史（操作不可逆，回滚成本高）/);
     assert.ok(!text.includes('rm-recursive-force'), '不要把内部 id 甩给用户');
+  });
+});
+
+describe('远端转发（kind R）', () => {
+  it('规格是「远端监听端口 → 本地目标」，flag 用 -R', () => {
+    const { flag, spec } = forwardSpec('R', { remotePort: 8080, localPort: 3000, localHost: '127.0.0.1' });
+    assert.equal(flag, '-R');
+    assert.equal(spec, '127.0.0.1:8080:127.0.0.1:3000');
+  });
+
+  it('取消也要用 -R 标记', () => {
+    const { flag, spec } = forwardSpec('R', { remotePort: 8080, localPort: 3000 });
+    const argv = sshSocketArgv([], { socket: '/tmp/x.sock', host: 'h' }, ['-O', 'cancel', flag, spec]);
+    assert.ok(argv.includes('-R'), argv.join(' '));
+  });
+
+  it('远端探测脚本带上端口，并区分 LISTEN / CLOSED / UNKNOWN', () => {
+    const script = remotePortProbeScript(8080);
+    assert.match(script, /8080/);
+    assert.match(script, /LISTEN/);
+    assert.match(script, /UNKNOWN/);
+    assert.ok(script.includes('command -v bash'), '没有 bash 时要能报告无法确认');
   });
 });

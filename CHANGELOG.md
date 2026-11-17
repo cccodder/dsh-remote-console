@@ -15,6 +15,9 @@ extension points, so a DSH minor release may need a plugin release.
   访问远端网络，不用再手敲 `ssh -D`。仍然只绑回环地址，终端结束随会话停止。
   转发规格抽成纯函数 `forwardSpec(kind, …)` 并加了单元测试：`-D` 的取消必须用 `-D` 标记
   （`ssh -O cancel -L` 取消不掉 `-D` 开出来的规则）。
+- **`remote_forward` 支持 `kind: 'R'`（远端端口转到本地）**：在远端开一个监听端口，把连接转回本机的
+  服务（例如让远端访问本机的调试面板）。就绪判定必须回远端探测（bash `/dev/tcp`），本地的
+  `portAccepts` 看不到远端的监听；远端没有 bash 时明确返回「未能验证」，不假装成功。
 
 ### Changed
 
@@ -22,7 +25,6 @@ extension points, so a DSH minor release may need a plugin release.
   DSH Desktop 0.2.1-rc.3 上用 0.10.12 复测四项全过（启动不退出、长命令输出完整、长路径
   `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
   顺手修掉英文能力矩阵里仍把 Windows 标成 ❌ 的 7 行、平台表的 Windows 行，以及两处「Windows 尚未支持」的过期结论。
-
 - **窄屏布局**：面板宽度小于 420px 时缩小内边距、主机行更紧凑、搜索框用 16px 字号（避免 iOS 聚焦
   自动放大）、底部提示折行且隐藏占位撑杆；390px 宽下不再横向溢出。
 - **危险命令分级**：命中项按 `destructive` / `irreversible` / `session` 三级分类，审批文案直接说清
