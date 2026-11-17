@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath, parseSshConfigHosts, sshConfigCandidates } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath, parseSshConfigHosts, sshConfigCandidates, importPreview, writeHostsFile } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -399,5 +399,21 @@ describe('SSH 配置导入预览', () => {
   it('同一个别名只出现一次', () => {
     const candidates = sshConfigCandidates([], 'Host a\nHost a\nHost b');
     assert.deepEqual(candidates.map((entry) => entry.host), ['a', 'b']);
+  });
+});
+
+describe('导入预览的接线（rc1013 P1 回归）', () => {
+  it('ssh config 里的别名是候选，不是「已存在」', () => {
+    writeHostsFile([{ host: 'tsv-alias', user: '', port: '' }]);
+    const candidates = importPreview('Host fresh\nHost tsv-alias');
+    const byHost = Object.fromEntries(candidates.map((entry) => [entry.host, entry]));
+    assert.equal(byHost.fresh.status, 'new', 'ssh config 的别名必须可导入');
+    assert.equal(byHost['tsv-alias'].status, 'existing', 'hosts.tsv 里已有的才算已存在');
+  });
+
+  it('带 user/port 的直连记录不算已知别名（它不在 ssh config 里按别名出现）', () => {
+    writeHostsFile([{ host: '203.0.113.10', user: 'root', port: '22' }]);
+    const candidates = importPreview('Host 203.0.113.10');
+    assert.equal(candidates[0].status, 'new', '直连目标与别名不是同一件事');
   });
 });
