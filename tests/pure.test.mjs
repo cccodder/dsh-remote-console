@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -346,5 +346,22 @@ describe('文件浏览：只读列目录', () => {
     const script = fileListScript("/tmp/it's here");
     assert.ok(script.includes("/tmp/it'\\''s here"), script);
     assert.ok(!script.includes('__ERROR__') === false, '失败标记要在');
+  });
+});
+
+describe('文件写路由的安全闸', () => {
+  it('只接受绝对路径，拒绝 ..、NUL 和空值', () => {
+    assert.equal(validateRemoteFilePath('/srv/app/README.md'), null);
+    assert.match(validateRemoteFilePath('relative/path'), /absolute/);
+    assert.match(validateRemoteFilePath('/srv/../etc/passwd'), /\.\./);
+    assert.match(validateRemoteFilePath('/srv/a\u0000b'), /NUL/);
+    assert.match(validateRemoteFilePath(''), /empty/);
+  });
+
+  it('敏感路径拒绝写入', () => {
+    assert.equal(isSensitiveRemotePath('/etc/passwd', '/home/me'), true);
+    assert.equal(isSensitiveRemotePath('/home/me/.ssh/authorized_keys', '/home/me'), true);
+    assert.equal(isSensitiveRemotePath('/home/me/.bashrc', '/home/me'), true);
+    assert.equal(isSensitiveRemotePath('/srv/app/config.yml', '/home/me'), false);
   });
 });

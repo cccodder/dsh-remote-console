@@ -40,6 +40,11 @@ extension points, so a DSH minor release may need a plugin release.
 - 新增只读路由 `GET /plugins/dsh-remote-console/files.json?pid=&path=`：绝对路径校验、同源校验、
   只允许列目录，目录不存在返回 404。
 
+- **面板文件写操作（上传 / 下载 / 删除）**：写路由要求 `POST` + 同源 + `x-dsh-rc-token`（进程随机令牌，
+  只经同源 `state.json` 下发）+ `application/octet-stream`，单次上传上限 32 MB；敏感路径
+  （`/etc`、`~/.ssh`、shell 配置等）一律拒绝，改配置请走 `remote_upload`（会走审批）。删除只允许普通文件，
+  目录与 `/` 拒绝；下载直接流式返回，不落临时文件。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
