@@ -27,6 +27,18 @@ dsh plugin --profile web add dsh-remote-console
 
 Then: right sidebar → "SSH remote" → pick a host → you type the password → let the agent work in that same terminal.
 
+### One screen, not two channels
+
+Most SSH plugins give the agent its own exec channel: you cannot see what it runs, and it does not know
+what you typed. This one does not.
+
+1. You pick the host in the sidebar and type the password yourself; the connection belongs to your session.
+2. When the agent calls `remote_run`, it writes into that terminal's input and reads the same screen buffer you see.
+3. You can take over at any moment; the agent's next call reads the state after your keystrokes (`cwd`, environment included).
+4. Every command from either side lands in one audit trail: who, when, what, and the exit code.
+
+The trade-off is honest: one terminal per session, no second pane; rendering, input and scrolling stay DSH's own xterm — the plugin does not reimplement a terminal.
+
 ### What it is not
 
 | You might expect | Answer |
