@@ -74,6 +74,7 @@ describe('apply()', () => {
     assert.deepEqual(names, [
       'remote_audit_export',
       'remote_audit_read',
+      'remote_audit_timeline',
       'remote_close',
       'remote_download',
       'remote_exec',
