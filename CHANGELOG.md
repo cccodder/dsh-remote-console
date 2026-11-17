@@ -8,6 +8,14 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Added
+
+- **`remote_forward` 支持 `kind: 'D'`（本地 SOCKS5 代理）**：以前只能 `-L` 把本地端口转到远端某个
+  `host:port`；现在可在本机开一个 SOCKS5 代理，让浏览器或其它工具经这条已认证的 ControlMaster
+  访问远端网络，不用再手敲 `ssh -D`。仍然只绑回环地址，终端结束随会话停止。
+  转发规格抽成纯函数 `forwardSpec(kind, …)` 并加了单元测试：`-D` 的取消必须用 `-D` 标记
+  （`ssh -O cancel -L` 取消不掉 `-D` 开出来的规则）。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +

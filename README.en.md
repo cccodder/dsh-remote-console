@@ -146,7 +146,7 @@ No Python, no edits to `~/.ssh/config`, no shell rc changes.
 | `remote_download(remote_path, local_path, overwrite?)` | Remote → local: streamed, sha256 verified, no local overwrite by default, same limit |
 | `remote_read_file(path, max_bytes?)` | Read remote text (128 KB default, 256 KB max); binary files are refused and redirected to `remote_download` |
 | `remote_write_file(path, content, append?)` | Write ≤256 KB of UTF-8 text; content goes over stdin, never through the terminal window |
-| `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` for `ssh -N -L 127.0.0.1:...` tunnels, bound to loopback only |
+| `remote_forward(action, kind?, ...)` | `start`/`stop`/`list` tunnels: `kind=L` local port to a remote target, `kind=D` a local SOCKS5 proxy; loopback only |
 | `remote_screen(lines)` | Current screen as plain text (ANSI stripped) |
 | `remote_log(cursor)` | Incremental read of the unified JSONL log (human commands, agent commands, both outputs) |
 | `remote_audit_read(cursor?, tool?)` | Read the **cross-session** audit trail: commands and exit codes, approvals, transfers, forwards, session start/end (no screen content) |

@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -117,4 +117,28 @@ describe('terminatingMatches（会结束整个 console 的命令）', () => {
       assert.deepEqual(terminatingMatches(command), []);
     });
   }
+});
+
+describe('端口转发规格', () => {
+  it('-L：本地端口转到远端 host:port', () => {
+    const { flag, spec } = forwardSpec('L', { localPort: 9000, remoteHost: 'db.internal', remotePort: 5432 });
+    assert.equal(flag, '-L');
+    assert.equal(spec, '127.0.0.1:9000:db.internal:5432');
+  });
+
+  it('-D：只有本地 SOCKS5 监听，没有目标', () => {
+    const { flag, spec } = forwardSpec('D', { localPort: 1080 });
+    assert.equal(flag, '-D');
+    assert.equal(spec, '127.0.0.1:1080');
+    assert.ok(!spec.includes(':db'), 'SOCKS5 不该带远端目标');
+  });
+
+  it('-D 的取消命令必须用 -D 标记（用 -L 取消不掉）', () => {
+    const prefix = [];
+    const cover = { socket: '/tmp/x.sock', host: 'h' };
+    const { flag, spec } = forwardSpec('D', { localPort: 1080 });
+    const argv = sshSocketArgv(prefix, cover, ['-O', 'cancel', flag, spec]);
+    assert.ok(argv.includes('-D'), argv.join(' '));
+    assert.ok(!argv.includes('-L'), argv.join(' '));
+  });
 });

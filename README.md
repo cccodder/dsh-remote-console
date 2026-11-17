@@ -150,7 +150,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | `remote_download(remote_path, local_path, overwrite?)` | 远端 → 本地：流式传输并校验 sha256，默认不覆盖本地文件，上限同上 |
 | `remote_read_file(path, max_bytes?)` | 读远端文本（默认 128 KB、上限 256 KB）；二进制文件拒绝显示，提示改用 `remote_download` |
 | `remote_write_file(path, content, append?)` | 写 ≤256 KB 的 UTF-8 文本；内容走 stdin，不进终端窗口 |
-| `remote_forward(action, remote_port?, ...)` | `start`/`stop`/`list` 管理端口转发：`ssh -N -L 127.0.0.1:...`，只绑回环 |
+| `remote_forward(action, kind?, ...)` | `start`/`stop`/`list` 管理端口转发：`kind=L` 本地端口转到远端，`kind=D` 本地 SOCKS5 代理；都只绑回环 |
 | `remote_screen(lines)` | 当前屏幕纯文本（剥 ANSI） |
 | `remote_log(cursor)` | 统一 JSONL 日志的增量读：人敲的命令、agent 的命令、两边输出 |
 | `remote_audit_read(cursor?, tool?)` | 读**跨会话保留**的审计日志：agent 执行过的命令/退出码、审批、传输、转发、连接起止（不含屏幕内容） |
