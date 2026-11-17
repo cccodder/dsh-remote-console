@@ -19,6 +19,10 @@ extension points, so a DSH minor release may need a plugin release.
   服务（例如让远端访问本机的调试面板）。就绪判定必须回远端探测（bash `/dev/tcp`），本地的
   `portAccepts` 看不到远端的监听；远端没有 bash 时明确返回「未能验证」，不假装成功。
 
+- **新增 `remote_metrics`（只读健康快照）**：一次 ssh 采集 uptime、1/5/15 分钟负载与核数、内存和根文件系统
+  占用，百分比由采集到的数字算出来而不是另写；读不到就明说读不到。不装包、不留常驻进程，
+  Windows 的 PTY 回退通道同样可用。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +

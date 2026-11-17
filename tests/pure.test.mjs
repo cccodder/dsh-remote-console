@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -196,5 +196,29 @@ describe('远端转发（kind R）', () => {
     assert.match(script, /LISTEN/);
     assert.match(script, /UNKNOWN/);
     assert.ok(script.includes('command -v bash'), '没有 bash 时要能报告无法确认');
+  });
+});
+
+describe('主机健康快照', () => {
+  const raw = ['uptime=90061', 'load=0.42 0.31 0.20', 'cpu=8', 'mem=16384000 4096000', 'disk=233701376 42362432'].join('\n');
+
+  it('解析 key=value 并带单位换算', () => {
+    const m = parseMetrics(raw);
+    assert.equal(m.uptimeSeconds, 90061);
+    assert.equal(m.cpu, 8);
+    assert.deepEqual([m.load1, m.load5, m.load15], [0.42, 0.31, 0.2]);
+  });
+
+  it('百分比由同一组数字算出', () => {
+    const text = formatMetrics(parseMetrics(raw));
+    assert.match(text, /memory: 已用 11\.7 GiB \/ 15\.6 GiB（75%）/);
+    assert.match(text, /disk \/: 已用 40\.4 GiB \/ 222\.9 GiB（18%）/);
+    assert.match(text, /1 天 1 小时/);
+  });
+
+  it('读不到就说明读不到，不编数字', () => {
+    const text = formatMetrics(parseMetrics('uptime=0\ncpu=0'));
+    assert.match(text, /memory: 读不到 \/proc\/meminfo/);
+    assert.match(text, /disk \/: 读不到 df 输出/);
   });
 });

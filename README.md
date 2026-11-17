@@ -50,7 +50,7 @@ dsh plugin --profile web add dsh-remote-console
 
 | | |
 | --- | --- |
-| agent 工具 | 16 个：终端 6 · 文件 4 · 端口转发 1 · 审计 2 · 主机列表 3 |
+| agent 工具 | 17 个：终端 6 · 文件 4 · 端口转发 1 · 审计 2 · 主机列表 3 · 健康快照 1 |
 | 文件传输 | 流式传输 + 双侧 sha256；单文件默认 256 MB，设置页可调到 2048 MB |
 | 终端 | 复用 DSH 原生终端，人机共用 PTY；退出码由 shell 钩子（OSC）回传，不靠猜提示符 |
 | 面板 | 搜索、最近连接排序、空状态引导；常见 ssh 报错翻成下一步动作 |
@@ -153,6 +153,7 @@ dsh --profile web --dump-config | grep -A2 dsh-remote-console
 | `remote_forward(action, kind?, ...)` | `start`/`stop`/`list` 管理端口转发：`kind=L` 本地端口转到远端，`kind=D` 本地 SOCKS5 代理，`kind=R` 远端端口转到本地；都只绑回环 |
 | `remote_screen(lines)` | 当前屏幕纯文本（剥 ANSI） |
 | `remote_log(cursor)` | 统一 JSONL 日志的增量读：人敲的命令、agent 的命令、两边输出 |
+| `remote_metrics(console_pid?)` | 只读健康快照：uptime、负载/核数、内存、根文件系统；一次 ssh 采集，不装包、不留常驻进程 |
 | `remote_audit_read(cursor?, tool?)` | 读**跨会话保留**的审计日志：agent 执行过的命令/退出码、审批、传输、转发、连接起止（不含屏幕内容） |
 | `remote_audit_export(local_path, format?)` | 把审计日志导出成本地 `jsonl` / `csv`（0600），用于归档或核对 |
 | `remote_close()` | 断开 ssh master 并清理 socket/rendezvous 文件、停止该终端的转发 |

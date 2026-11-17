@@ -69,7 +69,7 @@ describe('apply()', () => {
   const before = ctx.subprocess.spawnTerminal;
   const dispose = apply(ctx);
 
-  it('注册全部 6 个工具', () => {
+  it('注册全部工具', () => {
     const names = registered.map((tool) => tool.name).sort();
     assert.deepEqual(names, [
       'remote_audit_export',
@@ -82,6 +82,7 @@ describe('apply()', () => {
       'remote_host_list',
       'remote_host_remove',
       'remote_log',
+      'remote_metrics',
       'remote_read_file',
       'remote_run',
       'remote_screen',
