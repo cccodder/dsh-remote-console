@@ -132,7 +132,7 @@ describe('更新检查', () => {
 
 describe('面板：最近连接、过滤与错误翻译', () => {
   const plugin = loaded.factory(requireStub);
-  const { relativeTime, filterShells, orderShells, friendlyError, readRecent, noteRecent } = plugin.__testing;
+  const { relativeTime, filterShells, orderShells, friendlyError, readRecent, noteRecent, formatSize, shortSessionId, clockRange } = plugin.__testing;
 
   it('相对时间只在一个月内展示', () => {
     const now = 1_800_000_000_000;
@@ -183,5 +183,31 @@ describe('面板：最近连接、过滤与错误翻译', () => {
     assert.match(friendlyError('ssh: connect to host x port 22: Connection refused'), /端口/);
     assert.match(friendlyError('Could not resolve hostname foo'), /主机名/);
     assert.match(friendlyError('something unusual'), /^读取失败：something unusual$/);
+  });
+});
+
+describe('文件与活动视图的格式化', () => {
+  const plugin = loaded.factory(requireStub);
+  const { formatSize, shortSessionId, clockRange } = plugin.__testing;
+
+  it('文件大小只留一位小数', () => {
+    assert.equal(formatSize(0), '0 B');
+    assert.equal(formatSize(1023), '1023 B');
+    assert.equal(formatSize(2048), '2.0 KB');
+    assert.equal(formatSize(5 * 1024 * 1024), '5.0 MB');
+    assert.equal(formatSize(undefined), '');
+  });
+
+  it('长会话 id 收缩成可分辨的头尾', () => {
+    assert.equal(shortSessionId('short'), 'short');
+    assert.match(shortSessionId('session-89c5d492-c5c4-4f64-a45a-cd04d290b1f5'), /^session-…cd04d290$/);
+  });
+
+  it('同一天只显示时分，跨天带日期', () => {
+    const base = new Date('2026-11-17T10:00:00');
+    const sameDay = clockRange(base.getTime(), base.getTime() + 3600_000);
+    assert.match(sameDay, /^10:00–11:00$/);
+    const crossDay = clockRange(base.getTime(), base.getTime() + 26 * 3600_000);
+    assert.match(crossDay, /^11\/17 10:00–12:00$/);
   });
 });

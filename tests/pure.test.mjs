@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -296,5 +296,55 @@ describe('面板状态（webServer 只读路由）', () => {
     assert.equal(sameOriginRequest({ headers: { host: '127.0.0.1:3000', origin: 'http://127.0.0.1:3000' } }), true);
     assert.equal(sameOriginRequest({ headers: { host: '127.0.0.1:3000', origin: 'http://evil.example' } }), false);
     assert.equal(sameOriginRequest({ headers: { origin: 'http://127.0.0.1:3000' } }), false, '没有 Host 时不放行');
+  });
+});
+
+describe('状态路由：会话视图与审计回放字段', () => {
+  const now = 1_800_000_000_000;
+
+  it('终端列表带主机与用户，不带路径等无关字段', () => {
+    const status = summarizeStatus({
+      consoles: [{ pid: 7, host: 'web-01', user: 'deploy', sessionId: 's-1', socket: '/tmp/x.sock' }],
+      now,
+    });
+    assert.deepEqual(status.consoleList, [{ pid: '7', host: 'web-01', user: 'deploy', session: 's-1' }]);
+    assert.ok(!JSON.stringify(status).includes('/tmp/x.sock'));
+  });
+
+  it('回放摘要只有窗口与计数，没有命令原文', () => {
+    const status = summarizeStatus({
+      records: [
+        { t: now - 3000, pid: '1', session: 's-a', tool: 'remote_run', exit: 0, cmd: 'cat .env' },
+        { t: now - 2000, pid: '1', session: 's-a', tool: 'remote_upload', path: '/tmp/x' },
+      ],
+      now,
+    });
+    assert.equal(status.audit.recent.length, 1);
+    assert.equal(status.audit.recent[0].commands, 1);
+    assert.equal(status.audit.recent[0].transfers, 1);
+    assert.ok(!JSON.stringify(status).includes('cat .env'), '不能把命令原文带出去');
+    assert.ok(!JSON.stringify(status).includes('/tmp/x'), '传输路径也不带');
+  });
+});
+
+describe('文件浏览：只读列目录', () => {
+  it('解析类型/大小/名字，目录排在前面', () => {
+    const stdout = ['dir=/srv/app', 'd\t0\tsrc', 'f\t128\tREADME.md', 'o\t0\tsocket.sock'].join('\n');
+    const { dir, entries } = parseFileListing(stdout);
+    assert.equal(dir, '/srv/app');
+    assert.deepEqual(entries.map((entry) => entry.name), ['src', 'README.md', 'socket.sock']);
+    assert.equal(entries[1].size, 128);
+    assert.equal(entries[1].type, 'file');
+  });
+
+  it('坏行跳过，不抛错', () => {
+    const { entries } = parseFileListing('garbage\nf\t1\ta\n\nf\t2\tb');
+    assert.deepEqual(entries.map((entry) => entry.name), ['a', 'b']);
+  });
+
+  it('脚本把目录单引号包起来，避免命令注入', () => {
+    const script = fileListScript("/tmp/it's here");
+    assert.ok(script.includes("/tmp/it'\\''s here"), script);
+    assert.ok(!script.includes('__ERROR__') === false, '失败标记要在');
   });
 });
