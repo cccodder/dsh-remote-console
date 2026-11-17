@@ -42,6 +42,7 @@ dsh plugin --profile web add dsh-remote-console
 | agent 工具 | 16 个：终端 6 · 文件 4 · 端口转发 1 · 审计 2 · 主机列表 3 |
 | 文件传输 | 流式传输 + 双侧 sha256；单文件默认 256 MB，设置页可调到 2048 MB |
 | 终端 | 复用 DSH 原生终端，人机共用 PTY；退出码由 shell 钩子（OSC）回传，不靠猜提示符 |
+| 面板 | 搜索、最近连接排序、空状态引导；常见 ssh 报错翻成下一步动作 |
 | 审计 | 跨会话 JSONL：命令、退出码、审批结果、传输路径 + sha256、转发；写入前脱敏 |
 | 依赖 | 运行时 0 依赖；不改 DSH；Node ≥ 20 |
 | 测试 | 197 个测试，含真实 sshd 的 CI；npm 发布带 provenance |
