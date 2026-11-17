@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -140,5 +140,39 @@ describe('端口转发规格', () => {
     const argv = sshSocketArgv(prefix, cover, ['-O', 'cancel', flag, spec]);
     assert.ok(argv.includes('-D'), argv.join(' '));
     assert.ok(!argv.includes('-L'), argv.join(' '));
+  });
+});
+
+describe('危险命令分级', () => {
+  it('删除类命中给 destructive 和中文说明', () => {
+    const entries = dangerEntries('rm -rf /data');
+    assert.equal(entries[0].id, 'rm-recursive-force');
+    assert.equal(entries[0].risk, 'destructive');
+    assert.equal(entries[0].label, '递归强制删除');
+  });
+
+  it('强制推送是 irreversible，不是 destructive', () => {
+    const entries = dangerEntries('git push --force origin main');
+    assert.ok(entries.some((entry) => entry.id === 'force-push' && entry.risk === 'irreversible'));
+  });
+
+  it('结束会话类只有在 includeTerminating 时才出现', () => {
+    assert.equal(dangerEntries('exit 0', { includeTerminating: false }).length, 0);
+    const withTerm = dangerEntries('exit 0', { includeTerminating: true });
+    assert.equal(withTerm[0].id, 'shell-exit');
+    assert.equal(withTerm[0].risk, 'session');
+  });
+
+  it('正常命令不误报', () => {
+    for (const cmd of ['ls -la', 'git status', 'rm -f build.log', 'sudo systemctl restart nginx']) {
+      assert.equal(dangerEntries(cmd).length, 0, cmd);
+    }
+  });
+
+  it('描述句说清「为什么危险」，不拿模式 id 交差', () => {
+    const text = describeDanger(dangerEntries('rm -rf /data && git push --force'));
+    assert.match(text, /递归强制删除（数据会被删除，无法恢复）/);
+    assert.match(text, /强制推送覆盖远端历史（操作不可逆，回滚成本高）/);
+    assert.ok(!text.includes('rm-recursive-force'), '不要把内部 id 甩给用户');
   });
 });
