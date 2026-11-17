@@ -26,16 +26,20 @@
 | P2-2 主机健康快照 | **完成** | `remote_metrics` 只读采集，PTY 回退可用 |
 | P2-3 窄屏布局 | **完成** | <420px 收紧，390px 无横向溢出 |
 
-## 通道调研结论（2026-11-17）
+## 通道结论（2026-11-17，已解决）
 
-DSH 确实有 typed 的 client ↔ host 远程调用：`@deepseek-ai/dsh-api-gateway`（Host 侧
-`ctx.typertGateway`，Client 侧 `ctx.remote`）+ `@deepseek-ai/dsh-api-remotes`，走 Typert 的
-`InvocationDescriptor` 契约，还支持 stream 与调用取消。但它要求**构建期生成的 descriptor**：
-业务 Service 要用 `@Remote` / `@RemoteScope` 标记并配合代码生成，手写 bundle 接不上。SRC 模式只是
-未生成定义时的开发回退，官方文档把它当临时手段。
+两条路都试过了：
 
-结论：要做 P1-3 / P1-4 / P2-1 的界面部分，前置工作是给插件引入构建链（tsdown/esbuild）并声明一个
-Remote 服务；这本身是一档独立工程，不适合塞进某个功能 PR。v0.12 之前不动。
+1. **Typert Remote（`ctx.remote` + `dsh-api-gateway`）不可用**：它要求构建期生成
+   `InvocationDescriptor`，手写 bundle 接不上；SRC 模式只是未生成定义时的开发回退，不承诺稳定。
+2. **`ctx.webServer` 具名路由可用**（采用）：宿主注册 `GET /plugins/dsh-remote-console/state.json`，
+   面板同源 `fetch`。这是 DSH 插件本来就支持的能力，不需要构建链。
+
+安全边界：只回计数与隧道方向（不回命令原文、不回屏幕内容），`no-store`，浏览器带 `Origin` 时
+必须与 `Host` 同源；没有 webServer 的部署（headless/TUI）安静跳过，面板照常工作。
+
+后续 P1-3 文件抽屉、P1-4 会话视图、P2-1 审计回放界面都可以走这条通道，每次只加一个路由字段与
+对应的面板区块。
 
 ## P1：连接之后（按可交付性排序）
 

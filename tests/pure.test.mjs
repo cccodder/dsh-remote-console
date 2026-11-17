@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -257,5 +257,44 @@ describe('审计时间线', () => {
 
   it('空时间线给明确说明', () => {
     assert.match(formatTimeline([]), /timeline: 0 个会话/);
+  });
+});
+
+describe('面板状态（webServer 只读路由）', () => {
+  const now = 1_800_000_000_000;
+  const records = [
+    { t: now - 1000, pid: '1', session: 's-a', tool: 'remote_run', exit: 0 },
+    { t: now - 2000, pid: '1', session: 's-a', tool: 'remote_exec', exit: 2 },
+    { t: now - 30 * 3600 * 1000, pid: '2', session: 's-b', tool: 'remote_run', exit: 0 },
+  ];
+
+  it('只统计 24 小时内的命令与失败', () => {
+    const status = summarizeStatus({ records, now });
+    assert.equal(status.audit.commands24h, 2);
+    assert.equal(status.audit.failures24h, 1);
+  });
+
+  it('隧道区分方向和目标', () => {
+    const status = summarizeStatus({
+      tunnels: [
+        { id: 'fwd-1', kind: 'L', listenPort: 9000, remoteHost: 'db', remotePort: 5432 },
+        { id: 'fwd-2', kind: 'R', listenPort: 8080, localHost: '127.0.0.1', localPort: 3000 },
+      ],
+      now,
+    });
+    assert.deepEqual(status.tunnels[0], { id: 'fwd-1', kind: 'L', listen: 9000, target: 'db:5432' });
+    assert.deepEqual(status.tunnels[1], { id: 'fwd-2', kind: 'R', listen: 8080, target: '127.0.0.1:3000' });
+  });
+
+  it('只回计数，不回命令原文或屏幕内容', () => {
+    const status = summarizeStatus({ records: [...records, { t: now, tool: 'remote_run', exit: 0, cmd: 'rm -rf /tmp/x' }], now });
+    assert.ok(!JSON.stringify(status).includes('rm -rf'), '状态路由不能带命令原文');
+  });
+
+  it('同源校验：浏览器带 Origin 时必须和 Host 一致', () => {
+    assert.equal(sameOriginRequest({ headers: {} }), true);
+    assert.equal(sameOriginRequest({ headers: { host: '127.0.0.1:3000', origin: 'http://127.0.0.1:3000' } }), true);
+    assert.equal(sameOriginRequest({ headers: { host: '127.0.0.1:3000', origin: 'http://evil.example' } }), false);
+    assert.equal(sameOriginRequest({ headers: { origin: 'http://127.0.0.1:3000' } }), false, '没有 Host 时不放行');
   });
 });
