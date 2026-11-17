@@ -13,6 +13,30 @@
 | 转发实现 | `ssh -N -L`，复用 ControlMaster，只绑回环 | 扩 `-D`/`-R` 只需改宿主的转发规格与取消标记 |
 | 审计 | `audit/audit.jsonl`，宿主可读可导出 | 做「回放」的瓶颈在界面展示，不在数据 |
 
+## 当前状态（2026-11-17）
+
+| 项 | 状态 | 说明 |
+| --- | --- | --- |
+| P1-1 转发 `-D` / `-R` | **完成** | `-L`/`-D`/`-R` 三向都支持；取消标记与建立标记一致；`-R` 回远端探测，确认不了就说「未能验证」 |
+| P1-2 危险命令分级 | **完成** | destructive / irreversible / session 三级 + 中文原因，审计带 `risk` |
+| P1-3 文件抽屉 | **阻塞** | 需要 client ↔ host 查询通道（结论见下） |
+| P1-4 多标签 / 会话视图 | **阻塞** | 同上；且 DSH 原生 tab 已覆盖「多终端」，只有「会话视图」值得做 |
+| P1-5 断线提示与一键恢复 | **部分** | 工具在 socket 消失时会明确报 `CONSOLE_NOT_CONNECTED`；自动重连需要 DSH 终端生命周期钩子，暂不做 |
+| P2-1 审计回放 | **agent 侧完成** | `remote_audit_timeline` 按会话聚合；界面回放仍需通道 |
+| P2-2 主机健康快照 | **完成** | `remote_metrics` 只读采集，PTY 回退可用 |
+| P2-3 窄屏布局 | **完成** | <420px 收紧，390px 无横向溢出 |
+
+## 通道调研结论（2026-11-17）
+
+DSH 确实有 typed 的 client ↔ host 远程调用：`@deepseek-ai/dsh-api-gateway`（Host 侧
+`ctx.typertGateway`，Client 侧 `ctx.remote`）+ `@deepseek-ai/dsh-api-remotes`，走 Typert 的
+`InvocationDescriptor` 契约，还支持 stream 与调用取消。但它要求**构建期生成的 descriptor**：
+业务 Service 要用 `@Remote` / `@RemoteScope` 标记并配合代码生成，手写 bundle 接不上。SRC 模式只是
+未生成定义时的开发回退，官方文档把它当临时手段。
+
+结论：要做 P1-3 / P1-4 / P2-1 的界面部分，前置工作是给插件引入构建链（tsdown/esbuild）并声明一个
+Remote 服务；这本身是一档独立工程，不适合塞进某个功能 PR。v0.12 之前不动。
+
 ## P1：连接之后（按可交付性排序）
 
 ### P1-1 转发能力补齐（`-D` 已完成，`-R` 待做）
