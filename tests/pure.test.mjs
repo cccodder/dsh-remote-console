@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath, parseSshConfigHosts, sshConfigCandidates } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -363,5 +363,41 @@ describe('文件写路由的安全闸', () => {
     assert.equal(isSensitiveRemotePath('/home/me/.ssh/authorized_keys', '/home/me'), true);
     assert.equal(isSensitiveRemotePath('/home/me/.bashrc', '/home/me'), true);
     assert.equal(isSensitiveRemotePath('/srv/app/config.yml', '/home/me'), false);
+  });
+});
+
+describe('SSH 配置导入预览', () => {
+  const text = [
+    'Host web-01',
+    '  HostName 203.0.113.10',
+    '  User deploy',
+    '  Port 2222',
+    'Host db-*',
+    'Host !bad gw',
+    '  ProxyJump bastion',
+    'Host web-01',
+  ].join('\n');
+
+  it('解析 Host 段与选项', () => {
+    const blocks = parseSshConfigHosts(text);
+    assert.equal(blocks[0].patterns[0], 'web-01');
+    assert.equal(blocks[0].options.user, 'deploy');
+    assert.equal(blocks[0].options.port, '2222');
+  });
+
+  it('区分可导入 / 已存在 / 跳过，并带跳板', () => {
+    const candidates = sshConfigCandidates(['web-01'], text);
+    const byHost = Object.fromEntries(candidates.map((entry) => [entry.host, entry]));
+    assert.equal(byHost['web-01'].status, 'existing');
+    assert.equal(byHost['db-*'].status, 'skipped');
+    assert.match(byHost['db-*'].reason, /通配/);
+    assert.equal(byHost['!bad'].status, 'skipped');
+    assert.equal(byHost.gw.status, 'new');
+    assert.equal(byHost.gw.proxyJump, 'bastion');
+  });
+
+  it('同一个别名只出现一次', () => {
+    const candidates = sshConfigCandidates([], 'Host a\nHost a\nHost b');
+    assert.deepEqual(candidates.map((entry) => entry.host), ['a', 'b']);
   });
 });

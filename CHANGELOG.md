@@ -45,6 +45,14 @@ extension points, so a DSH minor release may need a plugin release.
   （`/etc`、`~/.ssh`、shell 配置等）一律拒绝，改配置请走 `remote_upload`（会走审批）。删除只允许普通文件，
   目录与 `/` 拒绝；下载直接流式返回，不落临时文件。
 
+- **面板内文件编辑**：点文件名进入编辑区，保存走同一套写路由（令牌 + 同源 + POST）。新路由
+  `GET /plugins/dsh-remote-console/files/read` 单次上限 256 KB，含 NUL 的二进制文件返回 415，
+  超限返回 413——不做二进制硬编。
+- **状态行自动刷新**：面板打开时每 15 秒重取状态路由，页面隐藏时跳过；不再需要手点刷新。
+- **设置页「从 SSH 配置导入」预览**：扫描 `~/.ssh/config`，列出可导入 / 已存在 / 跳过（通配、`!`
+  排除），可导入项显示 User/Port/跳板，勾选后只追加到主机列表草稿，保存仍由用户确认。
+  新路由 `GET /plugins/dsh-remote-console/ssh-config.json` 只回别名与选项，不回密钥内容。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
