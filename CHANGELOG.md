@@ -15,6 +15,22 @@ extension points, so a DSH minor release may need a plugin release.
   `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
   顺手修掉英文能力矩阵里仍把 Windows 标成 ❌ 的 7 行、平台表的 Windows 行，以及两处「Windows 尚未支持」的过期结论。
 
+## [0.11.0] - 2026-11-17
+
+### Added
+
+- **主机面板重做**：主机多于 4 台时出现搜索框；按最近连接排序；没有配置主机时给空状态引导；
+  搜索无结果时给出「没有匹配「xxx」的主机」和「清空搜索」。
+- **最近连接记忆**：连接时间只写在浏览器本地（localStorage，最多 20 条，30 天过期），面板副标题显示
+  「上次连接 · 12 分钟前」，并据此排序。不写宿主配置、不进审计、不发网络请求。
+- **连接错误翻译**：`Permission denied (publickey)`、`Connection refused`、`Could not resolve hostname`、
+  `Host key verification failed` 等常见 ssh 报错翻成下一步该检查什么；识别不了的原样保留。
+
+### Changed
+
+- **主机行改为安静的列表**：默认透明、hover 提亮、键盘焦点有可见描边；面板底部三句提示合并成一行，
+  版本号贴右。窗口宽度不变，信息密度提高但不增加视觉噪音。
+
 ## [0.10.12] - 2026-10-31
 
 ### Added
@@ -488,6 +504,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
 [Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...HEAD
+[0.11.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...v0.11.0
 [0.10.12]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...v0.10.12
 [0.10.11]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.10...v0.10.11
 [0.10.10]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.9...v0.10.10

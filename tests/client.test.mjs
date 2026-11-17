@@ -129,3 +129,59 @@ describe('更新检查', () => {
     assert.equal(compareVersions('not-a-version', '0.6.3'), 0);
   });
 });
+
+describe('面板：最近连接、过滤与错误翻译', () => {
+  const plugin = loaded.factory(requireStub);
+  const { relativeTime, filterShells, orderShells, friendlyError, readRecent, noteRecent } = plugin.__testing;
+
+  it('相对时间只在一个月内展示', () => {
+    const now = 1_800_000_000_000;
+    assert.equal(relativeTime(now, now - 30_000), '刚刚');
+    assert.equal(relativeTime(now, now - 5 * 60_000), '5 分钟前');
+    assert.equal(relativeTime(now, now - 3 * 3600_000), '3 小时前');
+    assert.equal(relativeTime(now, now - 2 * 86400_000), '2 天前');
+    assert.equal(relativeTime(now, now - 31 * 86400_000), null, '超过保留期不显示');
+    assert.equal(relativeTime(now, now + 1000), null, '未来时间不显示');
+    assert.equal(relativeTime(Number.NaN, now), null);
+  });
+
+  it('过滤按名字和路径，大小写不敏感', () => {
+    const shells = [
+      { path: '/tmp/dsh-ssh-alpha', name: 'SSH alpha' },
+      { path: '/tmp/dsh-ssh-beta', name: 'SSH beta' },
+    ];
+    assert.deepEqual(filterShells(shells, 'ALPHA').map((s) => s.name), ['SSH alpha']);
+    assert.deepEqual(filterShells(shells, 'dsh-ssh-beta').map((s) => s.name), ['SSH beta']);
+    assert.deepEqual(filterShells(shells, '  ').map((s) => s.name), ['SSH alpha', 'SSH beta']);
+  });
+
+  it('最近连过的排前面，其余保持宿主顺序', () => {
+    const shells = [
+      { path: '/a', name: 'SSH a' },
+      { path: '/b', name: 'SSH b' },
+      { path: '/c', name: 'SSH c' },
+    ];
+    const ordered = orderShells(shells, { '/b': 2_000, '/c': 1_000 });
+    assert.deepEqual(ordered.map((s) => s.path), ['/b', '/c', '/a']);
+  });
+
+  it('记录最近连接时保留有限条数', () => {
+    const store = new Map();
+    const storage = {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, value),
+    };
+    for (let index = 0; index < 25; index += 1) noteRecent(`/h${index}`, 1000 + index, storage);
+    const recent = readRecent(storage);
+    assert.equal(Object.keys(recent).length, 20);
+    assert.equal(recent['/h24'], 1024, '最新的留下');
+    assert.equal(recent['/h0'], undefined, '最旧的被挤掉');
+  });
+
+  it('常见 ssh 报错翻成下一步动作', () => {
+    assert.match(friendlyError('Permission denied (publickey,password).'), /密钥/);
+    assert.match(friendlyError('ssh: connect to host x port 22: Connection refused'), /端口/);
+    assert.match(friendlyError('Could not resolve hostname foo'), /主机名/);
+    assert.match(friendlyError('something unusual'), /^读取失败：something unusual$/);
+  });
+});
