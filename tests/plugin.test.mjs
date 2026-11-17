@@ -147,7 +147,7 @@ describe('apply()', () => {
     const exec = { agent: { id: 'a1' }, callId: 'c1' };
     await gateDangerousCommand(guardedCtx, exec, 'reboot', 'remote_run');
     assert.equal(asked.length, 1);
-    assert.match(asked[0].reason, /shutdown-or-reboot/u);
+    assert.match(asked[0].reason, /关机或重启主机/u);
     await assert.rejects(() => gateDangerousCommand(guardedCtx, exec, 'reboot', 'remote_run'), /DANGEROUS_REJECTED/u);
 
     // 安全命令不触发审批
@@ -177,7 +177,7 @@ describe('apply()', () => {
     });
     assert.equal(asked.length, 1);
     assert.match(asked[0].reason, /结束整个 SSH 终端/u);
-    assert.match(asked[0].reason, /shell-exit/u);
+    assert.match(asked[0].reason, /退出远端 shell/u);
 
     // remote_exec 是 sh -c 子进程，exit 不会结束 console，不拦
     await gateDangerousCommand(guardedCtx, exec, 'exit 42', 'remote_exec');
