@@ -27,6 +27,11 @@ extension points, so a DSH minor release may need a plugin release.
   转发、审批，以及最近一条命令。回答「这段时间在这台机器上做了什么」不用再翻原始 JSONL；
   不还原屏幕内容，也不包含用户手敲的文本。
 
+- **面板顶部状态行（宿主只读路由）**：宿主注册 `/plugins/dsh-remote-console/state.json`（同源、
+  只回计数），面板显示「终端 1 · 隧道 2 · 24h 命令 18（失败 1）」。这是客户端读宿主数据的第一条
+  通道：Typert Remote 要构建期生成的 descriptor，手写 bundle 接不上；`ctx.webServer` 的具名路由可以。
+  路由只回计数与隧道方向，不回命令原文、不回屏幕内容；浏览器带 `Origin` 时校验与 `Host` 同源。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
