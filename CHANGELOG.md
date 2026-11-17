@@ -32,6 +32,14 @@ extension points, so a DSH minor release may need a plugin release.
   通道：Typert Remote 要构建期生成的 descriptor，手写 bundle 接不上；`ctx.webServer` 的具名路由可以。
   路由只回计数与隧道方向，不回命令原文、不回屏幕内容；浏览器带 `Origin` 时校验与 `Host` 同源。
 
+- **面板会话视图**：`终端与隧道` 区块列出本会话活着的终端（主机/用户）与当前隧道（方向、监听端口、目标）。
+- **面板审计回放**：`最近活动` 区块按会话显示窗口、命令数（失败数）、传输数；数据来自与
+  `remote_audit_timeline` 同源的聚合，仍然不带命令原文与屏幕内容。
+- **面板文件浏览（只读）**：`文件` 区块走同一条已认证连接列远端目录，点目录进入，显示大小；
+  只对活着的终端生效，只读，不提供上传/删除/改权限。
+- 新增只读路由 `GET /plugins/dsh-remote-console/files.json?pid=&path=`：绝对路径校验、同源校验、
+  只允许列目录，目录不存在返回 404。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
