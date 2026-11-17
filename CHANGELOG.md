@@ -23,6 +23,11 @@ extension points, so a DSH minor release may need a plugin release.
   `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
   顺手修掉英文能力矩阵里仍把 Windows 标成 ❌ 的 7 行、平台表的 Windows 行，以及两处「Windows 尚未支持」的过期结论。
 
+### Changed
+
+- **窄屏布局**：面板宽度小于 420px 时缩小内边距、主机行更紧凑、搜索框用 16px 字号（避免 iOS 聚焦
+  自动放大）、底部提示折行且隐藏占位撑杆；390px 宽下不再横向溢出。
+
 ## [0.11.0] - 2026-11-17
 
 ### Added
