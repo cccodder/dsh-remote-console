@@ -538,6 +538,10 @@ socket，所以插件用 Node 版包装器（`bin/dsh-ssh.mjs`）起终端，age
   `remote_upload`、`remote_download` 都可用，但部分行为有差异——命令与数据会出现在用户
   窗口里，`remote_exec` 的 stdout/stderr 合并；传输单文件上限 **1 MiB**（base64 分块走终端）。
 - 不可用：`remote_forward`（端口转发需要一条已认证的可复用连接）；`remote_audit_*` 不受影响。
+- **面板文件区不可用**：侧栏「SSH 远程」面板里的文件浏览、编辑、上传、下载、删除依赖 ControlMaster
+  socket，Windows 没有这条连接，所以这一块在 Windows 上是空的。文件操作请让 agent 用
+  `remote_upload` / `remote_download` / `remote_read_file` / `remote_write_file`（它们走 PTY 回退，单文件 ≤1 MiB）。
+  面板的其它部分（主机列表、分组/置顶、跳板链路、状态行、最近活动）在 Windows 上正常。
 - 启动器是 `node dsh-ssh.mjs --host/--target ...`，需要 DSH 自带的那份 Node（不需要系统额外装 Node）。
   DSH Desktop 的宿主跑在 Electron 里，`process.execPath` 不是 node，插件会按
   `DSH_RC_NODE` → 自带 Node 路径的顺序解析（issue #26）。

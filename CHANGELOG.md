@@ -86,6 +86,13 @@ extension points, so a DSH minor release may need a plugin release.
 
 ### Changed
 
+- **Windows 限制写清楚**：侧栏面板的文件浏览/编辑/上传下载依赖 ControlMaster socket，Windows
+  没有这条连接，文件区在 Windows 上是空的。README（中/英）与 `docs/compat.md`（中/英）现在明确
+  标注这一点，并给出替代路径（agent 的 `remote_upload` 等工具走 PTY 回退，单文件 ≤1 MiB）；
+  面板其它部分在 Windows 上正常。能力矩阵的工具数同步从 16 更新到 18。
+
+### Changed
+
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
   DSH Desktop 0.2.1-rc.3 上用 0.10.12 复测四项全过（启动不退出、长命令输出完整、长路径
   `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；

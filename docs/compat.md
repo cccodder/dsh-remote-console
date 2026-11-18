@@ -30,7 +30,7 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | --- | --- | --- |
 | macOS（Intel / Apple Silicon） | ✅ 支持 | 包装器保持 POSIX bash + BSD `date` 兼容（0.6.1 修过 `date -Is`）；真机检查项见 [verify-e2e.md](verify-e2e.md) 与 [release-checklist.md](dev/release-checklist.md)。CI 不跑 macOS |
 | Linux（x64 / arm64） | ✅ 支持 | CI 在 `ubuntu-latest` 跑测试；插件本身没有平台相关二进制 |
-| Windows | ✅ 支持（实验性） | `bin/dsh-ssh.mjs`（Node 包装器）替代 bash 脚本；Windows OpenSSH 没有 ControlMaster，工具自动退回 PTY 通道（传输 ≤1 MiB），端口转发不可用。已由 Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 的用户在 0.10.12 上复测通过（启动不退出、长命令完整、长路径 cd && pwd、重启后正常；见 issue #26）；其他 Windows 版本与真实 conpty 观感未逐一验证 |
+| Windows | ✅ 支持（实验性） | `bin/dsh-ssh.mjs`（Node 包装器）替代 bash 脚本；Windows OpenSSH 没有 ControlMaster，工具自动退回 PTY 通道（传输 ≤1 MiB），端口转发与侧栏面板的文件区不可用（文件区依赖 ControlMaster socket；文件操作请让 agent 用 `remote_upload` 等 PTY 回退工具）。已由 Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 的用户在 0.10.12 上复测通过（启动不退出、长命令完整、长路径 cd && pwd、重启后正常；见 issue #26）；其他 Windows 版本与真实 conpty 观感未逐一验证 |
 | 其他（BSD 等） | ❌ 未验证 | 理论上包装器可移植，但没有测试记录 |
 
 ## 能力矩阵
@@ -41,7 +41,7 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | 能力 | 依赖的 DSH 内部点 / 机制 | macOS | Linux | Windows | 备注 |
 | --- | --- | --- | --- | --- | --- |
 | 终端同屏（人与 agent 共用同一个 PTY） | `ctx.subprocess.spawnTerminal`、`ctx.terminalController.shells/retain`、客户端 `ctx.webTerminals.launchShells` | ✅ | ✅ | ✅（实验性） | 核心能力；渲染/输入复用 DSH 自带终端。Windows 用 Node 版包装器 `bin/dsh-ssh.mjs`，启动器是 `node dsh-ssh.mjs --host/--target` |
-| 16 个工具（终端 6 个 + 文件 4 个 + 转发 1 个 + 审计 2 个 + 主机列表 3 个） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ✅（PTY 回退） | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志）。Windows 无 ControlMaster 时自动走 PTY：命令/数据在窗口可见、stdout/stderr 合并、传输 ≤1 MiB |
+| 18 个工具（终端 6 + 文件 4 + 转发 1 + 审计 3 + 主机列表 3 + 健康 1） | `defineTool`；`remote_run` 走 PTY + OSC 退出码；`remote_exec` 复用 ControlMaster socket | ✅ | ✅ | ✅（PTY 回退） | 除 `remote_audit_*` 外都需要活着的终端；`remote_exec` 为带外执行（窗口不可见，但落统一日志）。Windows 无 ControlMaster 时自动走 PTY：命令/数据在窗口可见、stdout/stderr 合并、传输 ≤1 MiB |
 | 文件传输（`remote_upload` / `remote_download`） | 已认证的 ControlMaster socket（`remote_exec` 通道）；无 socket 时 PTY + base64 分块 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 必须先有活着的 SSH 终端；流式传输并双向校验 sha256；默认不覆盖；单文件上限默认 256 MB，设置页可调 1–2048 MB（PTY 通道固定 1 MiB）；`remote_upload` 写敏感远端路径前审批 |
 | 文件读写（`remote_read_file` / `remote_write_file`） | 已认证的 ControlMaster socket；无 socket 时 PTY + base64 | ✅ | ✅ | ✅（PTY，≤1 MiB） | 读：默认 128 KB、上限 256 KB，二进制拒绝显示；写：≤256 KB UTF-8；socket 通道走 stdin 不进窗口，PTY 通道会经过用户窗口；敏感路径审批 |
 | 端口转发（`remote_forward` start/stop/list） | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>`（需要 ControlMaster） | ✅ | ✅ | ❌ | 只绑回环地址，局域网其他机器连不上；终端结束或 `remote_close` 时自动停止；不重新认证。Windows 没有可复用连接，明确报 `FORWARD_UNAVAILABLE` |
@@ -49,6 +49,8 @@ DSH 的兼容性检查只看 manifest 里的 `engines.dsh`（存在 `engines.dsh
 | 关窗即失能 | `ctx.terminalController.retain` 的窗口持有 | ✅ | ✅ | ✅ | 关标签立即杀进程树；关浏览器 8 秒宽限；DSH 崩溃时 ssh 随 HUP 退出（Windows 上 conpty 子进程同样被终止） |
 | 跨会话审计日志（`remote_audit_read` / `remote_audit_export`） | 宿主侧文件 `audit/audit.jsonl`（不依赖终端） | ✅ | ✅ | ✅ | 只记 agent 动作，不含屏幕输出；8 MB 滚动保留 5 份；`DSH_RC_AUDIT=off` 可关 |
 | 设置页：主机列表（插件行配置） | DSH `ctx.configForms` + `settings.describe`；宿主 `Config` 的 `volatile()` 字段；客户端 `plugins.row.config` slot | ✅（未在真实浏览器逐项验证） | ✅（未在真实浏览器逐项验证） | ✅（浏览器界面，与宿主平台无关） | 部署里没有 configForms（精简组合/老 DSH）时不注册、不影响终端；写入的是 profile patch 里的行配置 |
+| 侧栏面板：主机列表 / 分组置顶 / 状态行 / 最近活动 / 跳板链路 | 宿主 `ctx.webServer` 只读路由（`state.json` / `hosts-meta.json` 等）+ 浏览器 localStorage 偏好 | ✅ | ✅ | ✅（文件区除外） | 需要 webServer 服务；headless/TUI 部署不注册路由、面板静默隐藏相应区块；跳板链路是配置层静态校验，不发起 ssh |
+| 侧栏面板：文件浏览 / 编辑 / 上传 / 下载 / 删除 | 宿主只读路由 + 写路由（令牌 + 同源 + POST），底层依赖 ControlMaster socket | ✅ | ✅ | ❌ | Windows 无 socket，文件区为空；agent 侧文件工具仍可用（PTY 回退，≤1 MiB） |
 | 插件市场「有新版本」 | GitHub Release 查询（6 小时缓存）+ 市场索引 format 1 | ✅ | ✅ | ✅ | 离线/限流/CORS 失败静默；更新入口依赖市场索引 |
 
 ## peer 依赖
@@ -147,7 +149,7 @@ the decision). A wrong range is refused outright — do not rely on "install it 
 | --- | --- | --- |
 | macOS (Intel / Apple Silicon) | ✅ Supported | The wrapper stays POSIX-bash and BSD-`date` compatible (the `date -Is` bug was fixed in 0.6.1); manual checks are in [verify-e2e.md](verify-e2e.md) and [release-checklist.md](dev/release-checklist.md). CI does not run macOS |
 | Linux (x64 / arm64) | ✅ Supported | CI runs the tests on `ubuntu-latest`; the plugin ships no platform-specific binaries |
-| Windows | ✅ Supported (experimental) | `bin/dsh-ssh.mjs` (Node wrapper) replaces the bash launcher; Windows OpenSSH has no ControlMaster, so tools fall back to the PTY channel (≤1 MiB transfers) and port forwarding is unavailable. Verified by a user on Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 with 0.10.12 (issue #26); other Windows builds and conpty rendering are not individually verified |
+| Windows | ✅ Supported (experimental) | `bin/dsh-ssh.mjs` (Node wrapper) replaces the bash launcher; Windows OpenSSH has no ControlMaster, so tools fall back to the PTY channel (≤1 MiB transfers) and port forwarding and the sidebar panel file area are unavailable (the file area needs a ControlMaster socket; use the agent's `remote_upload` and friends, which fall back to PTY). Verified by a user on Windows 10 Pro 22H2 + DSH Desktop 0.2.1-rc.3 with 0.10.12 (issue #26); other Windows builds and conpty rendering are not individually verified |
 | Others (BSD, ...) | ❌ Not verified | The wrapper is probably portable, but there is no test record |
 
 ## Capabilities
@@ -159,12 +161,14 @@ plugin update. Platform columns assume a supported `engines.dsh` version: outsid
 | Capability | DSH internals / mechanism | macOS | Linux | Windows | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Shared terminal (human and agent in the same PTY) | `ctx.subprocess.spawnTerminal`, `ctx.terminalController.shells/retain`, client `ctx.webTerminals.launchShells` | ✅ | ✅ | ✅ (experimental) | Core capability; rendering and input reuse DSH's terminal. Windows uses the Node wrapper `bin/dsh-ssh.mjs` |
-| All 16 tools (6 terminal / 4 file / 1 forward / 2 audit / 3 host list) | `defineTool`; `remote_run` uses the PTY + OSC exit code; `remote_exec` reuses the ControlMaster socket | ✅ | ✅ | ✅ (PTY fallback) | Needs a live terminal; `remote_exec` is out of band (invisible in the window, still in the unified log). Without ControlMaster on Windows it uses the PTY: commands and data are visible in the window, stdout/stderr merge, transfers ≤1 MiB |
+| All 18 tools (6 terminal / 4 file / 1 forward / 3 audit / 3 host list / 1 health) | `defineTool`; `remote_run` uses the PTY + OSC exit code; `remote_exec` reuses the ControlMaster socket | ✅ | ✅ | ✅ (PTY fallback) | Needs a live terminal; `remote_exec` is out of band (invisible in the window, still in the unified log). Without ControlMaster on Windows it uses the PTY: commands and data are visible in the window, stdout/stderr merge, transfers ≤1 MiB |
 | File transfer (`remote_upload` / `remote_download`) | The authenticated ControlMaster socket (the `remote_exec` channel) | ✅ | ✅ | ✅ (PTY, ≤1 MiB) | Requires a live SSH terminal; streams and verifies sha256 on both sides; refuses to overwrite by default; 256 MB per file by default, configurable 1-2048 MB in the settings page; `remote_upload` asks for approval before writing sensitive remote paths (`~/.ssh`, `/etc`, sudoers, shell profiles) |
 | Remote file read/write (`remote_read_file` / `remote_write_file`) | The authenticated ControlMaster socket | ✅ | ✅ | ✅ (PTY, ≤1 MiB) | Read: 128 KB default, 256 KB max, binary refused; write: ≤256 KB UTF-8 over stdin, never in the terminal window; sensitive paths need approval |
 | Port forwarding (`remote_forward` start/stop/list) | `ssh -N -L 127.0.0.1:<local>:<remote_host>:<remote_port>` | ✅ | ✅ | ❌ | Loopback bind only — other machines on the LAN cannot reach it; stops when the terminal ends or `remote_close` runs; no re-authentication |
 | Dangerous / terminal-ending command approval | DSH `ctx.approval` | ✅ | ✅ | ✅ | Fails closed when no approval service is mounted (headless); `DSH_RC_DANGER_GUARD=off` disables it explicitly |
 | Closing revokes access | `ctx.terminalController.retain` window holds | ✅ | ✅ | ✅ | Closing the tab kills the process tree; closing the browser has an 8 s grace; a DSH crash drops the PTY and ssh exits on HUP |
+| Sidebar panel: hosts / groups / status / recent activity / jump chains | Host `ctx.webServer` read-only routes (`state.json`, `hosts-meta.json`, ...) + browser localStorage prefs | ✅ | ✅ | ✅ (except files) | Needs the webServer service; headless/TUI deployments skip the routes and the panel hides those blocks; jump chains are static config checks, no ssh connection |
+| Sidebar panel: file browse / edit / upload / download / delete | Host read + write routes (token + same-origin + POST) over a ControlMaster socket | ✅ | ✅ | ❌ | No socket on Windows, so the file area is empty; agent-side file tools still work (PTY, ≤1 MiB) |
 | Plugin market "update available" | GitHub Release lookup (6 h cache) + market index format 1 | ✅ | ✅ | ✅ | Offline / rate-limit / CORS failures stay silent; the Update entry depends on the market index |
 
 ## Peer dependencies

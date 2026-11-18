@@ -579,6 +579,11 @@ the agent tools automatically fall back to the PTY channel when no socket exists
   the user's window, `remote_exec` merges stdout/stderr, and transfers are capped at **1 MiB**
   (base64 chunks through the terminal), regardless of the configurable per-file limit.
 - Not available: `remote_forward` (port forwarding needs one authenticated reusable connection).
+- **The panel file area is unavailable**: the sidebar SSH panel's file browsing, editing, upload,
+  download and delete all require a ControlMaster socket, which Windows does not have, so that
+  section is empty on Windows. Ask the agent to use `remote_upload` / `remote_download` /
+  `remote_read_file` / `remote_write_file` instead (PTY fallback, ≤1 MiB per file). The rest of
+  the panel (host list, grouping/pinning, jump chains, status line, recent activity) works on Windows.
   `remote_audit_*` is unaffected.
 - Launchers are `node dsh-ssh.mjs --host/--target ...` and use the Node that ships with DSH, so no
   extra system Node is needed. DSH Desktop runs its Host inside Electron, where `process.execPath`
