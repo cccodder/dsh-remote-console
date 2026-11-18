@@ -3,7 +3,7 @@
  * 用临时 DSH_REMOTE_CONSOLE_DIR，不碰 ~/.dsh。
  */
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
@@ -12,7 +12,10 @@ process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-audit-')
 process.env.DSH_RC_AUDIT_MAX_BYTES = '2048';
 
 const { __testing } = await import('../lib/index.js');
-const { audit, readAudit, exportAudit, auditFiles, AUDIT_FILE, ensureDirs } = __testing;
+const {
+  audit, readAudit, exportAudit, auditFiles, AUDIT_FILE, ensureDirs,
+  loadAuditRecords, auditFingerprint, invalidateAuditRecordCache,
+} = __testing;
 
 const cover = { pid: '4242', host: 'demo-host' };
 
@@ -114,5 +117,44 @@ describe('审计日志', () => {
     assert.equal(existsSync(AUDIT_FILE), true);
     const exported = exportAudit({ localPath: join(mkdtempSync(join(tmpdir(), 'dsh-rc-audit-off-')), 'a.jsonl') });
     assert.equal(exported.records, 1);
+  });
+});
+
+describe('审计解析缓存', () => {
+  it('指纹随追加变化，追加后能读到新记录', () => {
+    reset();
+    invalidateAuditRecordCache();
+    audit(cover, { tool: 'remote_run', action: 'run', cmd: 'first' });
+    const firstFingerprint = auditFingerprint();
+    assert.equal(loadAuditRecords().length, 1);
+
+    audit(cover, { tool: 'remote_run', action: 'run', cmd: 'second' });
+    const secondFingerprint = auditFingerprint();
+    assert.notEqual(secondFingerprint, firstFingerprint, '追加后指纹必须变');
+    const records = loadAuditRecords();
+    assert.equal(records.length, 2);
+    assert.ok(records.some((record) => record.cmd === 'second'), '缓存失效后要拿到新记录');
+  });
+
+  it('since / session 过滤不污染缓存', () => {
+    reset();
+    invalidateAuditRecordCache();
+    audit({ pid: '1', host: 'h' }, { tool: 'remote_run', action: 'run', cmd: 'a' });
+    audit({ pid: '2', host: 'h' }, { tool: 'remote_exec', action: 'exec', cmd: 'b' });
+    const all = loadAuditRecords();
+    assert.equal(all.length, 2);
+    assert.equal(loadAuditRecords({ session: 'no-such-session' }).length, 0);
+    assert.equal(loadAuditRecords({ since: Date.now() + 10000 }).length, 0);
+    assert.equal(loadAuditRecords().length, 2, '过滤后全量读取仍完整');
+  });
+
+  it('轮转后指纹变化（旧文件被移走）', () => {
+    reset();
+    invalidateAuditRecordCache();
+    audit(cover, { tool: 'remote_run', action: 'run', cmd: 'x' });
+    const before = auditFingerprint();
+    // 模拟一次滚动：把当前文件挪成 .1
+    renameSync(AUDIT_FILE, `${AUDIT_FILE}.1`);
+    assert.notEqual(auditFingerprint(), before);
   });
 });
