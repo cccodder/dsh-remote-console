@@ -99,6 +99,13 @@ extension points, so a DSH minor release may need a plugin release.
   首页只留差异化叙事、演示 GIF / 截图、亮点清单和文档索引，并补上 powered-by-dsh 标识。
   `docs/compat.md` 里指向旧 README 锚点的链接同步改到新文档。
 
+### Added
+
+- **面板亮点短片**（`docs/images/panel-highlights.mp4`，24 秒）：从 Tester 的 rc1014 / rc1015
+  打码验收录屏里剪出五段——跳板异常红字与置顶、分组排序、SSH 配置导入预览、文件编辑保存、
+  状态行自动刷新——拼成一段连续演示，放进 README（中/英）的「亮点」段。
+  核心「人机同屏」GIF 不变：它展示的卖点没变，演示依然准确。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +

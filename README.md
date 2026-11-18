@@ -44,6 +44,10 @@
 - **危险操作有人把关**：`rm -rf`、`mkfs`、`git push --force` 等命中时弹审批，说清「为什么危险」；一次授权只对本次命令有效，无审批服务时直接拒绝。凭据不落盘、不进日志。
 - **一次会话一个终端**：终端按会话归属校验，别的会话读不到你的屏幕、不能在你的终端里执行。
 
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/panel-highlights.mp4
+
+*24 秒看面板：跳板异常红字与置顶 → 分组排序 → SSH 配置导入预览 → 文件编辑保存 → 状态行自动刷新。素材来自真实登录会话的验收录屏，已打码。*
+
 ![侧栏「SSH 远程」面板](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
 ## 30 秒上手

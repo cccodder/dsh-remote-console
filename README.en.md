@@ -44,6 +44,10 @@ The trade-off, stated plainly: one terminal per session, no second pane; renderi
 - **Dangerous operations get a human**: `rm -rf`, `mkfs`, `git push --force` and friends trigger an approval that says *why*; one grant covers one command, and a deployment without an approval service refuses outright. Credentials never land in a log.
 - **One terminal per session**: tools verify console ownership, so another session cannot read your screen or run commands in your terminal.
 
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/panel-highlights.mp4
+
+*24 seconds of the panel: jump-chain errors and pinning → group ordering → ssh-config import preview → editing a remote file → the status line refreshing itself. Cut from a real signed-in acceptance recording, masked.*
+
 ![The sidebar SSH remote panel](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
 ## Get started in 30 seconds
