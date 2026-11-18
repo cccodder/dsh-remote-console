@@ -22,6 +22,7 @@ const {
   STATUS_ROUTE,
   FILES_ROUTE,
   FILES_UPLOAD_ROUTE,
+  HOSTS_META_ROUTE,
   PANEL_TOKEN,
   invalidateAuditRecordCache,
   ensureDirs,
@@ -179,5 +180,35 @@ describe('写路由安全闸', () => {
     await tick();
     assert.equal(response.statusCode, 403);
     assert.equal(response.body, 'token');
+  });
+});
+
+
+describe('主机元信息路由', () => {
+  const webServer = makeWebServer();
+  applyPanelRoutes({ get: () => webServer });
+  const route = webServer.routes.get(HOSTS_META_ROUTE);
+
+  it('非 GET 405、跨站 403', () => {
+    const bad = res();
+    route.handler(req('POST', HOSTS_META_ROUTE), bad);
+    assert.equal(bad.statusCode, 405);
+    const cross = res();
+    route.handler(req('GET', HOSTS_META_ROUTE, { host: '127.0.0.1:3099', origin: 'http://evil.example' }), cross);
+    assert.equal(cross.statusCode, 403);
+  });
+
+  it('GET 回 { hosts } 且每项含链路结论字段', () => {
+    const response = res();
+    route.handler(req('GET', HOSTS_META_ROUTE), response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers['cache-control'], 'no-store');
+    const data = JSON.parse(response.body);
+    assert.ok(Array.isArray(data.hosts));
+    for (const host of data.hosts) {
+      assert.equal(typeof host.host, 'string');
+      assert.ok(Array.isArray(host.jumpChain));
+      assert.equal(typeof host.jumpOk, 'boolean');
+    }
   });
 });

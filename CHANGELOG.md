@@ -69,6 +69,21 @@ extension points, so a DSH minor release may need a plugin release.
   路径校验、JSON 与 no-store 头，以及 `ctx.inject` 延迟注册（webServer 晚到时路由仍能注册）。
   rc1013 的 P1 正是「纯函数测试全绿、接线错误漏到真机」——这层测试补的就是它。
 
+### Added
+
+- **主机分组与置顶（面板）**：每台主机行右侧加 ☆ 置顶与「组」按钮；分组名存浏览器本地
+  （`localStorage`，最多 20 条一样是本地偏好，不写宿主配置）。置顶组恒在最前，命名组按字序，
+  未分组垫底。这样主机多了仍能按项目/环境归拢，不用记一长串别名。
+- **跳板链路展示（面板）**：新增只读路由 `GET /plugins/dsh-remote-console/hosts-meta.json`，
+  回每个别名、User/Port 与 ProxyJump 链路。面板在主机行副标题显示「经 bastion → gw」；链路有
+  自指、环、跳板未定义时显示红色「跳板异常」及原因。校验是**配置层静态检查，不发起 ssh 连接**，
+  不碰凭据。新增纯函数 `sshHostDetails` / `proxyJumpAliases` / `analyzeJumpChain` / `panelHostMeta`。
+
+### Fixed
+
+- 设置页导入预览里「已存在」的主机此前不带 User/Port/ProxyJump；面板元信息改用独立的解析路径，
+  已配置主机的跳板信息也能拿到（rc1013 同类接线问题不再复现）。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +

@@ -11,7 +11,7 @@ import { describe, it } from 'node:test';
 process.env.DSH_REMOTE_CONSOLE_DIR = mkdtempSync(join(tmpdir(), 'dsh-rc-pure-'));
 
 const { __testing } = await import('../lib/index.js');
-const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath, parseSshConfigHosts, sshConfigCandidates, importPreview, writeHostsFile } = __testing;
+const { sanitize, redact, echoSkipLength, singleQuote, dangerousMatches, terminatingMatches , forwardSpec, sshSocketArgv, dangerEntries, describeDanger, remotePortProbeScript, parseMetrics, formatMetrics, summarizeTimeline, formatTimeline, summarizeStatus, sameOriginRequest, parseFileListing, fileListScript, validateRemoteFilePath, isSensitiveRemotePath, parseSshConfigHosts, sshConfigCandidates, importPreview, writeHostsFile, sshHostDetails, proxyJumpAliases, analyzeJumpChain, panelHostMeta } = __testing;
 
 describe('sanitize', () => {
   it('剥掉 ANSI 并处理行内覆盖', () => {
@@ -415,5 +415,75 @@ describe('导入预览的接线（rc1013 P1 回归）', () => {
     writeHostsFile([{ host: '203.0.113.10', user: 'root', port: '22' }]);
     const candidates = importPreview('Host 203.0.113.10');
     assert.equal(candidates[0].status, 'new', '直连目标与别名不是同一件事');
+  });
+});
+
+describe('跳板链路与主机元信息', () => {
+  const text = [
+    'Host web-01',
+    '  HostName 203.0.113.10',
+    '  User deploy',
+    '  Port 2222',
+    'Host bastion',
+    '  HostName 203.0.113.1',
+    '  User jump',
+    'Host db-01',
+    '  ProxyJump bastion',
+    'Host deep',
+    '  ProxyJump jump@bastion:2222,gw-02',
+    'Host gw-02',
+    '  HostName 203.0.113.2',
+    'Host loop-a',
+    '  ProxyJump loop-b',
+    'Host loop-b',
+    '  ProxyJump loop-a',
+    'Host missing',
+    '  ProxyJump no-such-host',
+  ].join('\n');
+
+  it('ProxyJump 支持 user@host:port 与逗号链', () => {
+    assert.deepEqual(proxyJumpAliases('jump@bastion:2222'), ['bastion']);
+    assert.deepEqual(proxyJumpAliases('a,b:22,user@c'), ['a', 'b', 'c']);
+    assert.deepEqual(proxyJumpAliases(''), []);
+    assert.deepEqual(proxyJumpAliases('[2001:db8::1]:22'), ['[2001:db8::1]']);
+  });
+
+  it('直连主机：链路为空、ok', () => {
+    const result = analyzeJumpChain('web-01', sshHostDetails(text));
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.chain, []);
+  });
+
+  it('单层跳板：链出 bastion，ok', () => {
+    const result = analyzeJumpChain('db-01', sshHostDetails(text));
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.chain, ['bastion']);
+  });
+
+  it('多层跳板：按逗号顺序展开', () => {
+    const result = analyzeJumpChain('deep', sshHostDetails(text));
+    assert.deepEqual(result.chain, ['bastion', 'gw-02']);
+    assert.equal(result.ok, true);
+  });
+
+  it('自指、环、缺失跳板都要报错，不假装成功', () => {
+    const details = sshHostDetails(text);
+    const loop = analyzeJumpChain('loop-a', details);
+    assert.equal(loop.ok, false);
+    assert.match(loop.problem, /成环/);
+    const missing = analyzeJumpChain('missing', details);
+    assert.equal(missing.ok, false);
+    assert.match(missing.problem, /未在 ssh 配置里定义/);
+    const unknown = analyzeJumpChain('not-there', details);
+    assert.equal(unknown.ok, false);
+  });
+
+  it('panelHostMeta 合并 ssh 别名与直连目标，带链路结论', () => {
+    const hosts = panelHostMeta(text, ['deploy@203.0.113.20:22']);
+    const byHost = Object.fromEntries(hosts.map((entry) => [entry.host, entry]));
+    assert.equal(byHost['db-01'].jumpChain[0], 'bastion');
+    assert.equal(byHost['loop-a'].jumpOk, false);
+    assert.equal(byHost['deploy@203.0.113.20:22'].source, 'config');
+    assert.equal(byHost['deploy@203.0.113.20:22'].jumpOk, true);
   });
 });
