@@ -8,115 +8,60 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-18
+
 ### Added
 
-- **`remote_forward` 支持 `kind: 'D'`（本地 SOCKS5 代理）**：以前只能 `-L` 把本地端口转到远端某个
-  `host:port`；现在可在本机开一个 SOCKS5 代理，让浏览器或其它工具经这条已认证的 ControlMaster
-  访问远端网络，不用再手敲 `ssh -D`。仍然只绑回环地址，终端结束随会话停止。
-  转发规格抽成纯函数 `forwardSpec(kind, …)` 并加了单元测试：`-D` 的取消必须用 `-D` 标记
-  （`ssh -O cancel -L` 取消不掉 `-D` 开出来的规则）。
-- **`remote_forward` 支持 `kind: 'R'`（远端端口转到本地）**：在远端开一个监听端口，把连接转回本机的
-  服务（例如让远端访问本机的调试面板）。就绪判定必须回远端探测（bash `/dev/tcp`），本地的
-  `portAccepts` 看不到远端的监听；远端没有 bash 时明确返回「未能验证」，不假装成功。
+- **三向端口转发**：`remote_forward` 除 `-L`（本地端口转远端）外，新增 `kind=D`（本地 SOCKS5 代理）
+  与 `kind=R`（远端端口转回本机）。都复用已认证的 ControlMaster、只绑回环；`-R` 就绪判定回远端探测
+  （bash `/dev/tcp`），远端没有 bash 时明确返回「未能验证」；`-D`/`-R` 的取消标记与建立标记一致。
+- **`remote_metrics`（只读健康快照）**：一次 ssh 采集 uptime、1/5/15 分钟负载与核数、内存、根盘占用，
+  百分比由采集数字算出，读不到就明说读不到；不装包、不留常驻进程，PTY 回退通道同样可用。
+- **`remote_audit_timeline`（审计回放）**：把审计按会话聚合成时间线——起止时间、命令数与失败数、
+  传输、转发、审批与最近一条命令；不含屏幕内容，也不含用户手敲的文本。
 
-- **新增 `remote_metrics`（只读健康快照）**：一次 ssh 采集 uptime、1/5/15 分钟负载与核数、内存和根文件系统
-  占用，百分比由采集到的数字算出来而不是另写；读不到就明说读不到。不装包、不留常驻进程，
-  Windows 的 PTY 回退通道同样可用。
-
-- **新增 `remote_audit_timeline`（审计回放）**：把审计记录按会话聚合：起止时间、命令数与失败数、传输、
-  转发、审批，以及最近一条命令。回答「这段时间在这台机器上做了什么」不用再翻原始 JSONL；
-  不还原屏幕内容，也不包含用户手敲的文本。
-
-- **面板顶部状态行（宿主只读路由）**：宿主注册 `/plugins/dsh-remote-console/state.json`（同源、
-  只回计数），面板显示「终端 1 · 隧道 2 · 24h 命令 18（失败 1）」。这是客户端读宿主数据的第一条
-  通道：Typert Remote 要构建期生成的 descriptor，手写 bundle 接不上；`ctx.webServer` 的具名路由可以。
-  路由只回计数与隧道方向，不回命令原文、不回屏幕内容；浏览器带 `Origin` 时校验与 `Host` 同源。
-
-- **面板会话视图**：`终端与隧道` 区块列出本会话活着的终端（主机/用户）与当前隧道（方向、监听端口、目标）。
-- **面板审计回放**：`最近活动` 区块按会话显示窗口、命令数（失败数）、传输数；数据来自与
-  `remote_audit_timeline` 同源的聚合，仍然不带命令原文与屏幕内容。
-- **面板文件浏览（只读）**：`文件` 区块走同一条已认证连接列远端目录，点目录进入，显示大小；
-  只对活着的终端生效，只读，不提供上传/删除/改权限。
-- 新增只读路由 `GET /plugins/dsh-remote-console/files.json?pid=&path=`：绝对路径校验、同源校验、
-  只允许列目录，目录不存在返回 404。
-
-- **面板文件写操作（上传 / 下载 / 删除）**：写路由要求 `POST` + 同源 + `x-dsh-rc-token`（进程随机令牌，
-  只经同源 `state.json` 下发）+ `application/octet-stream`，单次上传上限 32 MB；敏感路径
-  （`/etc`、`~/.ssh`、shell 配置等）一律拒绝，改配置请走 `remote_upload`（会走审批）。删除只允许普通文件，
-  目录与 `/` 拒绝；下载直接流式返回，不落临时文件。
-
-- **面板内文件编辑**：点文件名进入编辑区，保存走同一套写路由（令牌 + 同源 + POST）。新路由
-  `GET /plugins/dsh-remote-console/files/read` 单次上限 256 KB，含 NUL 的二进制文件返回 415，
-  超限返回 413——不做二进制硬编。
-- **状态行自动刷新**：面板打开时每 15 秒重取状态路由，页面隐藏时跳过；不再需要手点刷新。
-- **设置页「从 SSH 配置导入」预览**：扫描 `~/.ssh/config`，列出可导入 / 已存在 / 跳过（通配、`!`
-  排除），可导入项显示 User/Port/跳板，勾选后只追加到主机列表草稿，保存仍由用户确认。
-  新路由 `GET /plugins/dsh-remote-console/ssh-config.json` 只回别名与选项，不回密钥内容。
+- **面板从「主机列表」变成「能干活的工作台」**：
+  - 状态行：终端 / 隧道 / 24h 命令（失败数），15 秒自动刷新，页面隐藏时跳过。
+  - 会话视图：本会话活着的终端与隧道。
+  - 最近活动：按会话的时间窗、命令数、传输数。
+  - 文件区：浏览、编辑（≤256 KB 文本）、上传、下载、删除，走同一条已认证连接。
+  - 主机分组 / 置顶：偏好只存浏览器 localStorage，不写宿主配置；置顶组恒在最前、命名组按字序、
+    未分组垫底。
+  - 跳板链路：副标题显示「经 bastion → gw」，成环 / 跳板未定义显示红色「跳板异常」+原因；
+    配置层静态校验，不发起 ssh、不碰凭据。
+  - 设置页「从 SSH 配置导入」预览：可导入 / 已存在 / 跳过（通配、`!`），可导入项带 User/Port/跳板，
+    勾选后只追加草稿，保存仍由用户确认。
+  - 窄屏布局：<420px 收紧，390px 无横向溢出。
+- 宿主新增只读路由（同源、no-store）：`state.json`、`files.json`、`files/read`、`ssh-config.json`、
+  `hosts-meta.json`；写路由（上传/删除）要求 POST + 同源 + 随机令牌（只经同源 state.json 下发）
+  + `application/octet-stream`，敏感路径（/etc、~/.ssh、shell 配置）一律拒绝，改配置仍走带审批的
+  `remote_upload`。
+- **README 精简到「为什么不同 + 亮点 + 30 秒上手」**：中文版 624→88 行，英文同步；技术细节迁到
+  `docs/usage.md` / `docs/security-model.md` / `docs/troubleshooting.md`；新增 24 秒面板亮点短片
+  `docs/images/panel-highlights.mp4`（Tester 打码验收录屏剪辑），核心人机同屏 GIF 保持不变。
 
 ### Fixed
 
-- **状态路由不再每次全量解析审计**：面板 15 秒轮询一次，原先每次都把最多 5×8 MB 审计文件
-  JSON.parse 一遍，会把主线程钉住。现在按每个文件的 `size + mtimeMs` 作指纹缓存解析结果，
-  追加或轮转后指纹变化才重读；`since` / `session` 过滤每次现做，多个调用方共享同一份缓存。
-- **列目录路由补上 `..` 路径校验**：`files.json` 原先只检查绝对路径，未拒绝 `..` 段，与写路由
-  的 `validateRemoteFilePath()` 不一致；现在统一走同一个校验，路径穿越返回 400。这条是新增的
-  HTTP 层测试抓出来的（此前只测纯函数，接线漏洞会漏）。
-
-### Added
-
-- **面板路由的 HTTP 层测试**（`tests/routes.test.mjs`）：用假 webServer 捕获注册的路由，再用假
-  req/res 直接打 handler，覆盖方法 405、跨站 Origin 403、令牌 403、Content-Type 白名单、
-  路径校验、JSON 与 no-store 头，以及 `ctx.inject` 延迟注册（webServer 晚到时路由仍能注册）。
-  rc1013 的 P1 正是「纯函数测试全绿、接线错误漏到真机」——这层测试补的就是它。
-
-### Added
-
-- **主机分组与置顶（面板）**：每台主机行右侧加 ☆ 置顶与「组」按钮；分组名存浏览器本地
-  （`localStorage`，最多 20 条一样是本地偏好，不写宿主配置）。置顶组恒在最前，命名组按字序，
-  未分组垫底。这样主机多了仍能按项目/环境归拢，不用记一长串别名。
-- **跳板链路展示（面板）**：新增只读路由 `GET /plugins/dsh-remote-console/hosts-meta.json`，
-  回每个别名、User/Port 与 ProxyJump 链路。面板在主机行副标题显示「经 bastion → gw」；链路有
-  自指、环、跳板未定义时显示红色「跳板异常」及原因。校验是**配置层静态检查，不发起 ssh 连接**，
-  不碰凭据。新增纯函数 `sshHostDetails` / `proxyJumpAliases` / `analyzeJumpChain` / `panelHostMeta`。
-
-### Fixed
-
-- 设置页导入预览里「已存在」的主机此前不带 User/Port/ProxyJump；面板元信息改用独立的解析路径，
-  已配置主机的跳板信息也能拿到（rc1013 同类接线问题不再复现）。
+- **路由注册顺序**：`apply()` 早于 `webServer` 服务就绪，`ctx.get('webServer')` 恒为 undefined，
+  导致面板路由在真实安装里全部失效；改为 `ctx.inject(['webServer'])` 等依赖到位再注册。
+- **导入预览的接线**：`discoverHosts()` 自己解析 ssh config，被当成 known 列表，导致「可导入」
+  永远为空；现在 known 只算用户配置过的（`config.hosts` 行 + hosts.tsv 纯别名）。
+- **状态路由性能**：不再每次全量解析最多 5×8 MB 审计；按每个文件 size+mtimeMs 指纹缓存解析结果。
+- **列目录路径穿越**：`files.json` 原先只查绝对路径，未拒 `..` 段，统一走 `validateRemoteFilePath()`。
+- **危险命令分级**：命中项标 `destructive` / `irreversible` / `session` 三级 + 中文原因，审计带 `risk`；
+  只改解释，不新增规则、不改变拦截时机。
 
 ### Changed
 
-- **Windows 限制写清楚**：侧栏面板的文件浏览/编辑/上传下载依赖 ControlMaster socket，Windows
-  没有这条连接，文件区在 Windows 上是空的。README（中/英）与 `docs/compat.md`（中/英）现在明确
-  标注这一点，并给出替代路径（agent 的 `remote_upload` 等工具走 PTY 回退，单文件 ≤1 MiB）；
-  面板其它部分在 Windows 上正常。能力矩阵的工具数同步从 16 更新到 18。
+- **Windows 限制写清楚**：面板文件区在 Windows 上不可用（需要 ControlMaster socket），
+  README 与 compat.md 明确标注；agent 的文件工具仍走 PTY 回退（≤1 MiB）。
+  Windows 支持状态为「用户实测通过」（issue #26）。
 
-### Changed
+### Tests
 
-- **README 精简到「为什么不同 + 亮点 + 30 秒上手」**：中文版从 624 行降到 88 行，英文版同步。
-  安装三种方式、18 个工具表、选路规则、主机列表、更新、环境变量、数据目录迁到 `docs/usage.md`；
-  安全模型与权限暴露面迁到 `docs/security-model.md`；故障排查与性能基线迁到 `docs/troubleshooting.md`。
-  首页只留差异化叙事、演示 GIF / 截图、亮点清单和文档索引，并补上 powered-by-dsh 标识。
-  `docs/compat.md` 里指向旧 README 锚点的链接同步改到新文档。
-
-### Added
-
-- **面板亮点短片**（`docs/images/panel-highlights.mp4`，24 秒）：从 Tester 的 rc1014 / rc1015
-  打码验收录屏里剪出五段——跳板异常红字与置顶、分组排序、SSH 配置导入预览、文件编辑保存、
-  状态行自动刷新——拼成一段连续演示，放进 README（中/英）的「亮点」段。
-  核心「人机同屏」GIF 不变：它展示的卖点没变，演示依然准确。
-
-### Changed
-
-- **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
-  DSH Desktop 0.2.1-rc.3 上用 0.10.12 复测四项全过（启动不退出、长命令输出完整、长路径
-  `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
-  顺手修掉英文能力矩阵里仍把 Windows 标成 ❌ 的 7 行、平台表的 Windows 行，以及两处「Windows 尚未支持」的过期结论。
-- **窄屏布局**：面板宽度小于 420px 时缩小内边距、主机行更紧凑、搜索框用 16px 字号（避免 iOS 聚焦
-  自动放大）、底部提示折行且隐藏占位撑杆；390px 宽下不再横向溢出。
-- **危险命令分级**：命中项按 `destructive` / `irreversible` / `session` 三级分类，审批文案直接说清
-  「为什么危险」（例如「递归强制删除（数据会被删除，无法恢复）」），审计记录带 `risk` 字段。
-  不新增拦截规则、不改变拦截时机，只把原本只有内部 id 的判断翻译成人话。
+- 新增 HTTP 层路由测试（`tests/routes.test.mjs`）：同源、令牌、方法、Content-Type、路径校验、
+  no-store、`ctx.inject` 延迟注册；以及审计指纹缓存与跳板链路纯函数测试。
+  真机 UI 验收由 Tester 完成（rc1014 / rc1015，截图 + 一镜到底录屏 + 打码版）。
 
 ## [0.11.0] - 2026-11-17
 
@@ -607,6 +552,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
 [Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...HEAD
+[0.12.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...v0.11.0
 [0.10.12]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...v0.10.12
 [0.10.11]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.10...v0.10.11
