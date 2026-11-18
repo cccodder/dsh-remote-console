@@ -211,3 +211,64 @@ describe('文件与活动视图的格式化', () => {
     assert.match(crossDay, /^11\/17 10:00–12:00$/);
   });
 });
+
+describe('主机分组与置顶', () => {
+  const plugin = loaded.factory(requireStub);
+  const { readHostPrefs, writeHostPrefs, togglePinned, setHostGroup, hostMetaMap, groupShells } = plugin.__testing;
+
+  const store = () => {
+    const data = new Map();
+    return {
+      getItem: (key) => (data.has(key) ? data.get(key) : null),
+      setItem: (key, value) => data.set(key, value),
+    };
+  };
+  const shells = [
+    { path: '/ssh-a', name: 'SSH web-01' },
+    { path: '/ssh-b', name: 'SSH db-01' },
+    { path: '/ssh-c', name: 'SSH cache-02' },
+  ];
+
+  it('偏好读写容错：坏数据不该让面板崩', () => {
+    assert.deepEqual(readHostPrefs({ getItem: () => 'not json' }), { pinned: [], groups: {} });
+    assert.deepEqual(readHostPrefs({ getItem: () => null }), { pinned: [], groups: {} });
+  });
+
+  it('置顶与分组写入后可读回', () => {
+    const storage = store();
+    let prefs = readHostPrefs(storage);
+    prefs = togglePinned('web-01', prefs, storage);
+    prefs = setHostGroup('db-01', '生产', prefs, storage);
+    assert.deepEqual(prefs.pinned, ['web-01']);
+    assert.equal(prefs.groups['db-01'], '生产');
+    assert.deepEqual(readHostPrefs(storage), prefs);
+  });
+
+  it('取消置顶 / 清空分组', () => {
+    const storage = store();
+    let prefs = setHostGroup('db-01', '生产', readHostPrefs(storage), storage);
+    prefs = togglePinned('web-01', prefs, storage);
+    prefs = togglePinned('web-01', prefs, storage); // 再点一次取消
+    prefs = setHostGroup('db-01', '', prefs, storage); // 空名清掉分组
+    assert.deepEqual(prefs.pinned, []);
+    assert.equal(prefs.groups['db-01'], undefined);
+  });
+
+  it('置顶组在最前，命名组按序，未分组垫底', () => {
+    const prefs = { pinned: ['cache-02'], groups: { 'db-01': '生产' } };
+    const groups = groupShells(shells, prefs);
+    assert.deepEqual(groups.map((group) => group.name), ['置顶', '生产', '未分组']);
+    assert.equal(groups[0].shells[0].path, '/ssh-c');
+    assert.equal(groups[1].shells[0].path, '/ssh-b');
+    assert.equal(groups[2].shells[0].path, '/ssh-a');
+  });
+
+  it('元信息按别名索引，链路字段直接可取', () => {
+    const map = hostMetaMap([
+      { host: 'db-01', jumpChain: ['bastion'], jumpOk: true },
+      { host: 'bad', jumpChain: [], jumpOk: false, jumpProblem: '成环' },
+    ]);
+    assert.deepEqual(map.get('db-01').jumpChain, ['bastion']);
+    assert.equal(map.get('bad').jumpOk, false);
+  });
+});
