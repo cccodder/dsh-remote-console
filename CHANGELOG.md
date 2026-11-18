@@ -53,6 +53,22 @@ extension points, so a DSH minor release may need a plugin release.
   排除），可导入项显示 User/Port/跳板，勾选后只追加到主机列表草稿，保存仍由用户确认。
   新路由 `GET /plugins/dsh-remote-console/ssh-config.json` 只回别名与选项，不回密钥内容。
 
+### Fixed
+
+- **状态路由不再每次全量解析审计**：面板 15 秒轮询一次，原先每次都把最多 5×8 MB 审计文件
+  JSON.parse 一遍，会把主线程钉住。现在按每个文件的 `size + mtimeMs` 作指纹缓存解析结果，
+  追加或轮转后指纹变化才重读；`since` / `session` 过滤每次现做，多个调用方共享同一份缓存。
+- **列目录路由补上 `..` 路径校验**：`files.json` 原先只检查绝对路径，未拒绝 `..` 段，与写路由
+  的 `validateRemoteFilePath()` 不一致；现在统一走同一个校验，路径穿越返回 400。这条是新增的
+  HTTP 层测试抓出来的（此前只测纯函数，接线漏洞会漏）。
+
+### Added
+
+- **面板路由的 HTTP 层测试**（`tests/routes.test.mjs`）：用假 webServer 捕获注册的路由，再用假
+  req/res 直接打 handler，覆盖方法 405、跨站 Origin 403、令牌 403、Content-Type 白名单、
+  路径校验、JSON 与 no-store 头，以及 `ctx.inject` 延迟注册（webServer 晚到时路由仍能注册）。
+  rc1013 的 P1 正是「纯函数测试全绿、接线错误漏到真机」——这层测试补的就是它。
+
 ### Changed
 
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
