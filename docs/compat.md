@@ -72,7 +72,7 @@ peer 依赖不随插件安装，来自运行中的 DSH。manifest 有 `engines.d
    不在范围内会被 DSH 以 `incompatible-version` 拒绝，这是设计行为。
 
 2. **ssh 客户端**：插件不捆绑 `ssh`。`command -v ssh` 必须能找到一个 OpenSSH 客户端
-   （Linux 装 `openssh-client`，macOS 自带）。故障排查见 [README 的「故障排查」](../README.md#故障排查)。
+   （Linux 装 `openssh-client`，macOS 自带）。故障排查见 [故障排查与性能](troubleshooting.md)。
 
 3. **pnpm 11 的构建脚本拦截**：DSH 的 profile 由 pnpm 管理，安装插件时 DSH 以非交互方式跑
    pnpm。pnpm 11 默认 `strictDepBuilds: true`，依赖的 install/postinstall 脚本不再自动执行：
@@ -106,11 +106,11 @@ peer 依赖不随插件安装，来自运行中的 DSH。manifest 有 `engines.d
 - 单元测试与发版元数据：`npm test`、`node scripts/check-release.mjs`。
 - CI：`.github/workflows/ci.yml` 固定 DSH `0.2.1-rc.2`；`.github/workflows/compat.yml` 每周跑
   一次 DSH `next`，只作预警。
-- SSH 通道性能基线：`scripts/bench.mjs`（见 [README 的「性能基线」](../README.md#性能基线loopback)）。
+- SSH 通道性能基线：`scripts/bench.mjs`（见 [故障排查与性能](troubleshooting.md#性能基线loopback)）。
 - 真机端到端清单：[verify-e2e.md](verify-e2e.md)；发版前真机检查：
   [release-checklist.md](dev/release-checklist.md)。
 - 安全模型与漏洞报告：[SECURITY.md](../SECURITY.md)；插件承诺见
-  [README 的「安全模型」](../README.md#安全模型)。
+  [安全模型与权限](security-model.md)。
 
 ---
 
@@ -193,7 +193,7 @@ runs inside the DSH process, not in its own Node).
 
 2. **ssh client**: the plugin does not bundle `ssh`. `command -v ssh` must find an OpenSSH client
    (install `openssh-client` on Linux; macOS ships one). See the troubleshooting section in the
-   [README](../README.en.md#troubleshooting).
+   [troubleshooting and performance](troubleshooting.md).
 
 3. **pnpm 11 blocks dependency build scripts**: DSH manages profiles with pnpm and runs it
    non-interactively. pnpm 11 defaults to `strictDepBuilds: true`, so dependency install/postinstall
@@ -232,8 +232,8 @@ runs inside the DSH process, not in its own Node).
 - CI: `.github/workflows/ci.yml` pins DSH `0.2.1-rc.2`; `.github/workflows/compat.yml` runs the
   DSH `next` tag weekly as an early warning only.
 - SSH channel baseline: `scripts/bench.mjs` (see the
-  [README benchmark section](../README.en.md#benchmark-loopback)).
+  [troubleshooting and performance](troubleshooting.md#benchmark-loopback)).
 - Manual end-to-end checklist: [verify-e2e.md](verify-e2e.md); release-device checklist:
   [release-checklist.md](dev/release-checklist.md).
 - Security model and vulnerability reporting: [SECURITY.md](../SECURITY.md); what the plugin
-  promises: [README security model](../README.en.md#security).
+  promises: [security model and permissions](security-model.md).

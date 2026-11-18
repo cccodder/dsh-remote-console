@@ -93,6 +93,14 @@ extension points, so a DSH minor release may need a plugin release.
 
 ### Changed
 
+- **README 精简到「为什么不同 + 亮点 + 30 秒上手」**：中文版从 624 行降到 88 行，英文版同步。
+  安装三种方式、18 个工具表、选路规则、主机列表、更新、环境变量、数据目录迁到 `docs/usage.md`；
+  安全模型与权限暴露面迁到 `docs/security-model.md`；故障排查与性能基线迁到 `docs/troubleshooting.md`。
+  首页只留差异化叙事、演示 GIF / 截图、亮点清单和文档索引，并补上 powered-by-dsh 标识。
+  `docs/compat.md` 里指向旧 README 锚点的链接同步改到新文档。
+
+### Changed
+
 - **Windows 状态从「实验性」改为「用户实测通过」**：issue #26 的报告者在 Windows 10 Pro 22H2 +
   DSH Desktop 0.2.1-rc.3 上用 0.10.12 复测四项全过（启动不退出、长命令输出完整、长路径
   `cd && pwd` 一次成功、重启 App 后正常）。README（中/英）与 `docs/compat.md`（中/英）同步更新；
