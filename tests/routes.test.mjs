@@ -23,6 +23,7 @@ const {
   FILES_ROUTE,
   FILES_UPLOAD_ROUTE,
   HOSTS_META_ROUTE,
+  FILES_HOME_ROUTE,
   PANEL_TOKEN,
   invalidateAuditRecordCache,
   ensureDirs,
@@ -210,5 +211,27 @@ describe('主机元信息路由', () => {
       assert.ok(Array.isArray(host.jumpChain));
       assert.equal(typeof host.jumpOk, 'boolean');
     }
+  });
+});
+
+
+describe('远端 home 路由', () => {
+  const webServer = makeWebServer();
+  applyPanelRoutes({ get: () => webServer });
+  const route = webServer.routes.get(FILES_HOME_ROUTE);
+
+  it('非 GET 405、跨站 403、无活终端 404', async () => {
+    const method = res();
+    route.handler(req('POST', FILES_HOME_ROUTE), method);
+    await tick();
+    assert.equal(method.statusCode, 405);
+    const origin = res();
+    route.handler(req('GET', `${FILES_HOME_ROUTE}?pid=none`, { host: '127.0.0.1:3099', origin: 'http://evil.example' }), origin);
+    await tick();
+    assert.equal(origin.statusCode, 403);
+    const missing = res();
+    route.handler(req('GET', `${FILES_HOME_ROUTE}?pid=none`), missing);
+    await tick();
+    assert.equal(missing.statusCode, 404);
   });
 });

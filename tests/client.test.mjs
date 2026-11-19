@@ -38,6 +38,7 @@ const BASE_SHELLS = [
 
 function makeCtx() {
   const paneRegs = [];
+  const openedTabs = [];
   const effects = [];
   const webTerminals = {
     launchShells: async () => ({ shells: BASE_SHELLS, selectedShell: '/bin/bash' }),
@@ -58,11 +59,11 @@ function makeCtx() {
         return () => {};
       },
     },
-    sidebarRight: { openTab: () => {} },
+    sidebarRight: { openTab: (kind, options) => openedTabs.push({ kind, options }) },
     sidebarRightTabs: { register: () => () => {} },
     webTerminals,
   };
-  return { ctx, paneRegs, effects };
+  return { ctx, paneRegs, effects, openedTabs };
 }
 
 const requireStub = (name) => {
@@ -79,7 +80,9 @@ describe('client apply 幂等性（插件热更新）', () => {
     plugin.apply(ctx); // 正常加载
     plugin.apply(ctx); // 模拟 HMR：同一个 ctx 上再跑一次 apply
 
-    const loadShells = paneRegs.at(-1).definition.inject('session-1').loadShells;
+    const hostPane = paneRegs.findLast((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
+    assert.ok(hostPane, 'SSH 主机面板必须注册');
+    const loadShells = hostPane.definition.inject('session-1').loadShells;
     const result = await loadShells(undefined);
 
     const names = result.shells.map((shell) => shell.name);
@@ -270,5 +273,42 @@ describe('主机分组与置顶', () => {
     ]);
     assert.deepEqual(map.get('db-01').jumpChain, ['bastion']);
     assert.equal(map.get('bad').jumpOk, false);
+  });
+});
+
+
+describe('独立远程文件页', () => {
+  const plugin = loaded.factory(requireStub);
+  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, RemoteFiles } = plugin.__testing;
+
+  it('注册独立文件 Tab，并从终端行带着 pid 打开', () => {
+    const { ctx, paneRegs, openedTabs } = makeCtx();
+    plugin.apply(ctx);
+    const filesPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-files');
+    assert.ok(filesPane, '远程文件 Tab 必须注册');
+    assert.equal(filesPane.component, RemoteFiles);
+    const hostPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
+    hostPane.definition.inject('session-1').openFiles('4242');
+    assert.deepEqual(openedTabs, [{ kind: 'ssh-files', options: { params: { pid: '4242' } } }]);
+  });
+
+  it('远端路径拼接、父目录与文件名', () => {
+    assert.equal(joinRemotePath('/', 'etc'), '/etc');
+    assert.equal(joinRemotePath('/srv/app/', 'a.txt'), '/srv/app/a.txt');
+    assert.equal(parentRemotePath('/srv/app/a.txt'), '/srv/app');
+    assert.equal(parentRemotePath('/a'), '/');
+    assert.equal(parentRemotePath('/'), '/');
+    assert.equal(basenameRemotePath('/srv/a.txt'), 'a.txt');
+    assert.equal(basenameRemotePath('/'), 'download');
+  });
+
+  it('上传文件名不伪装成路径', () => {
+    assert.equal(safeUploadName('notes.txt'), true);
+    assert.equal(safeUploadName('../x'), false, '带路径的上传名必须拒绝');
+    assert.equal(safeUploadName('..x'), true, '以点开头的普通文件名仍合法');
+    assert.equal(safeUploadName('a/b'), false);
+    assert.equal(safeUploadName('a\\b'), false);
+    assert.equal(safeUploadName(''), false);
+    assert.equal(safeUploadName('..'), false);
   });
 });
