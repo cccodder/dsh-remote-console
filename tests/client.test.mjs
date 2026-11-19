@@ -335,9 +335,9 @@ describe('主机分组与置顶', () => {
     assert.equal(findConsoleForHost(consoles, 'demo-2').pid, '42');
     assert.equal(findConsoleForHost(consoles, 'demo'), undefined);
     assert.equal(compactHostLabel('demo-1'), 'demo-1');
-    assert.equal(compactHostLabel('demo@127.0.0.1:2222'), '127.0.0.1:2222');
+    assert.equal(compactHostLabel('demo@127.0.0.1:2222'), ':2222 · …1');
     assert.equal(terminalTitleForHost('demo-1'), '终端 · demo-1');
-    assert.equal(terminalTitleForHost('demo@127.0.0.1:2223'), '终端 · 127.0.0.1:2223');
+    assert.equal(terminalTitleForHost('demo@127.0.0.1:2223'), '终端 · :2223 · …1');
   });
 
   it('直连目标按 user/host/port 匹配在线终端并进入已连接组', () => {
