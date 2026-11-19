@@ -311,6 +311,15 @@ describe('状态路由：会话视图与审计回放字段', () => {
     assert.ok(!JSON.stringify(status).includes('/tmp/x.sock'));
   });
 
+  it('直连终端下发端口以还原完整目标，不下发 socket', () => {
+    const status = summarizeStatus({
+      consoles: [{ pid: 8, host: '127.0.0.1', user: 'demo', port: '2222', sessionId: 's-2', socket: '/tmp/private.sock' }],
+      now,
+    });
+    assert.deepEqual(status.consoleList, [{ pid: '8', host: '127.0.0.1', user: 'demo', port: '2222', session: 's-2' }]);
+    assert.ok(!JSON.stringify(status).includes('/tmp/private.sock'));
+  });
+
   it('回放摘要只有窗口与计数，没有命令原文', () => {
     const status = summarizeStatus({
       records: [

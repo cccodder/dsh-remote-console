@@ -39,7 +39,7 @@ The trade-off, stated plainly: one terminal per session, no second pane; renderi
 
 - **One shared screen**: the agent's commands run in your terminal — visible, take-over-able; exit codes come from a remote `PROMPT_COMMAND` hook (OSC), not from guessing a prompt.
 - **Traceable end to end**: a cross-session audit of commands, exit codes, approvals, transfer sha256s and tunnels, grouped into a per-session timeline. No screen content, redacted before write.
-- **A panel that does things**: host list with search, recent connections, groups/pinning and jump chains; a status line for terminals/tunnels/24h commands; a dedicated remote-files tab with a native-style tree and text editor, plus upload, download and delete.
+- **A panel that does things**: pinned, connected and recent hosts stay in front while other groups fold away; each row offers direct Connect / Files actions. The remote-files tab names the host and its connection state, with breadcrumbs, a native-style tree and text editor; uploads follow the current directory, with download and delete alongside.
 - **Authenticate once, reuse everywhere**: file transfer and three-way port forwarding (`-L` local-to-remote / `-D` local SOCKS5 / `-R` remote-to-local) all ride the authenticated ControlMaster socket — no second password prompt, and everything fails closed when the terminal ends.
 - **Dangerous operations get a human**: `rm -rf`, `mkfs`, `git push --force` and friends trigger an approval that says *why*; one grant covers one command, and a deployment without an approval service refuses outright. Credentials never land in a log.
 - **One terminal per session**: tools verify console ownership, so another session cannot read your screen or run commands in your terminal.

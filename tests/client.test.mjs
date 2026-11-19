@@ -38,6 +38,7 @@ const BASE_SHELLS = [
 
 function makeCtx() {
   const paneRegs = [];
+  const titleRegs = [];
   const openedTabs = [];
   const effects = [];
   const webTerminals = {
@@ -56,6 +57,7 @@ function makeCtx() {
       },
       register(definition, component) {
         if (definition.name === 'sidebar.right.pane.tab') paneRegs.push({ definition, component });
+        if (definition.name === 'sidebar.right.pane.tab.title') titleRegs.push({ definition, component });
         return () => {};
       },
     },
@@ -63,7 +65,7 @@ function makeCtx() {
     sidebarRightTabs: { register: () => () => {} },
     webTerminals,
   };
-  return { ctx, paneRegs, effects, openedTabs };
+  return { ctx, paneRegs, titleRegs, effects, openedTabs };
 }
 
 const requireStub = (name) => {
@@ -111,6 +113,44 @@ describe('client apply 幂等性（插件热更新）', () => {
     assert.notEqual(ctx.webTerminals.launchShells, patched);
     const visible = await ctx.webTerminals.launchShells('session-1');
     assert.equal(visible.shells.length, BASE_SHELLS.length);
+  });
+
+  it('连接后复用原生终端 view 设置主机标题', async () => {
+    const { ctx, paneRegs } = makeCtx();
+    const plugin = loaded.factory(requireStub);
+    const tabs = [];
+    const originalOpenTab = ctx.sidebarRight.openTab;
+    ctx.sidebarRight.tabsIn = () => tabs;
+    ctx.sidebarRight.openTab = (kind, options) => {
+      originalOpenTab(kind, options);
+      tabs.push({ id: 'tab-1', kind, contentId: 'terminal-content-1' });
+    };
+    let snapshot = { phase: 'creating', info: undefined };
+    const listeners = new Set();
+    const renamed = [];
+    const view = {
+      state: {
+        getSnapshot: () => snapshot,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+      rename: async (title) => renamed.push(title),
+    };
+    let viewArgs;
+    ctx.webTerminals.view = (...args) => {
+      viewArgs = args;
+      return view;
+    };
+    plugin.apply(ctx);
+    const hostPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
+    hostPane.definition.inject('session-1').connect('/tmp/dsh-ssh-alpha', 'session-1', 'alpha');
+    assert.deepEqual(viewArgs, ['session-1', 'tab-1', 'terminal-content-1', undefined, '/tmp/dsh-ssh-alpha']);
+    snapshot = { phase: 'connected', info: { id: 'terminal-1' } };
+    for (const listener of [...listeners]) listener();
+    await Promise.resolve();
+    assert.deepEqual(renamed, ['终端 · alpha']);
   });
 });
 
@@ -217,7 +257,7 @@ describe('文件与活动视图的格式化', () => {
 
 describe('主机分组与置顶', () => {
   const plugin = loaded.factory(requireStub);
-  const { readHostPrefs, writeHostPrefs, togglePinned, setHostGroup, hostMetaMap, groupShells } = plugin.__testing;
+  const { readHostPrefs, writeHostPrefs, togglePinned, setHostGroup, hostMetaMap, groupShells, findConsoleForHost, consoleDisplayName, compactHostLabel, terminalTitleForHost, renameTerminalWhenReady } = plugin.__testing;
 
   const store = () => {
     const data = new Map();
@@ -266,6 +306,82 @@ describe('主机分组与置顶', () => {
     assert.equal(groups[2].shells[0].path, '/ssh-a');
   });
 
+  it('在线与最近连接进入优先组，不重复出现在命名组', () => {
+    const now = 1_800_000_000_000;
+    const prefs = { pinned: ['cache-02'], groups: { 'db-01': '生产' } };
+    const groups = groupShells(shells, prefs, {
+      consoles: [{ pid: '42', host: 'web-01' }],
+      recent: { '/ssh-b': now - 60_000 },
+      now,
+    });
+    assert.deepEqual(groups.map((group) => group.name), ['置顶', '已连接', '最近连接']);
+    assert.deepEqual(groups.map((group) => group.shells[0].path), ['/ssh-c', '/ssh-a', '/ssh-b']);
+    assert.ok(groups.every((group) => group.priority));
+  });
+
+  it('最近连接最多展开 5 台，其余留在折叠组', () => {
+    const now = 1_800_000_000_000;
+    const many = Array.from({ length: 7 }, (_, index) => ({ path: `/ssh-${index}`, name: `SSH host-${index}` }));
+    const recent = Object.fromEntries(many.map((shell, index) => [shell.path, now - index * 1000]));
+    const groups = groupShells(many, { pinned: [], groups: {} }, { recent, now });
+    assert.deepEqual(groups.map((group) => group.name), ['最近连接', '未分组']);
+    assert.equal(groups[0].shells.length, 5);
+    assert.equal(groups[1].shells.length, 2);
+    assert.equal(groups[1].priority, false);
+  });
+
+  it('主机连接只按完整别名匹配，并生成可区分的短标题', () => {
+    const consoles = [{ pid: '41', host: 'demo-1' }, { pid: '42', host: 'demo-2' }];
+    assert.equal(findConsoleForHost(consoles, 'demo-2').pid, '42');
+    assert.equal(findConsoleForHost(consoles, 'demo'), undefined);
+    assert.equal(compactHostLabel('demo-1'), 'demo-1');
+    assert.equal(compactHostLabel('demo@127.0.0.1:2222'), ':2222 · …1');
+    assert.equal(terminalTitleForHost('demo-1'), '终端 · demo-1');
+    assert.equal(terminalTitleForHost('demo@127.0.0.1:2223'), '终端 · :2223 · …1');
+  });
+
+  it('直连目标按 user/host/port 匹配在线终端并进入已连接组', () => {
+    const direct = [
+      { pid: '51', host: '127.0.0.1', user: 'demo', port: '2222' },
+      { pid: '52', host: '127.0.0.1', user: 'demo', port: '2223' },
+      { pid: '53', host: '127.0.0.1', user: 'demo', port: '22' },
+    ];
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:2222').pid, '51');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:2223').pid, '52');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1').pid, '53', '缺省端口就是 22');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:22').pid, '53');
+    assert.equal(findConsoleForHost(direct, 'other@127.0.0.1:2222'), undefined);
+    assert.equal(consoleDisplayName(direct[1]), 'demo@127.0.0.1:2223');
+    const directShell = [{ path: '/ssh-direct', name: 'SSH demo@127.0.0.1:2222' }];
+    const groups = groupShells(directShell, { pinned: [], groups: {} }, { consoles: direct, recent: {}, now: 1_800_000_000_000 });
+    assert.deepEqual(groups.map((group) => group.name), ['已连接']);
+  });
+
+  it('原生终端创建完成后才重命名，并释放状态监听', async () => {
+    let snapshot = { phase: 'idle', info: undefined };
+    const listeners = new Set();
+    const titles = [];
+    const view = {
+      state: {
+        getSnapshot: () => snapshot,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+      rename: async (title) => titles.push(title),
+    };
+    const cleanup = renameTerminalWhenReady(view, '终端 · demo-1');
+    assert.equal(titles.length, 0);
+    assert.equal(listeners.size, 1);
+    snapshot = { phase: 'connected', info: { id: 'terminal-1' } };
+    for (const listener of [...listeners]) listener();
+    await Promise.resolve();
+    assert.deepEqual(titles, ['终端 · demo-1']);
+    assert.equal(listeners.size, 0);
+    cleanup();
+  });
+
   it('元信息按别名索引，链路字段直接可取', () => {
     const map = hostMetaMap([
       { host: 'db-01', jumpChain: ['bastion'], jumpOk: true },
@@ -279,7 +395,7 @@ describe('主机分组与置顶', () => {
 
 describe('独立远程文件页', () => {
   const plugin = loaded.factory(requireStub);
-  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, PANEL_UPLOAD_LIMIT_BYTES, uploadLimitMessage, RemoteFiles } = plugin.__testing;
+  const { joinRemotePath, parentRemotePath, basenameRemotePath, isRemotePathWithin, remoteBreadcrumbs, displayRemotePath, safeUploadName, PANEL_UPLOAD_LIMIT_BYTES, uploadLimitMessage, RemoteFiles, RemoteFilesTitle } = plugin.__testing;
 
   it('注册独立文件 Tab，并从终端行带着 pid 打开', () => {
     const { ctx, paneRegs, openedTabs } = makeCtx();
@@ -290,6 +406,59 @@ describe('独立远程文件页', () => {
     const hostPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
     hostPane.definition.inject('session-1').openFiles('4242');
     assert.deepEqual(openedTabs, [{ kind: 'ssh-files', options: { params: { pid: '4242' } } }]);
+  });
+
+  it('文件入口携带主机名，并注册动态文件 Tab 标题', () => {
+    const { ctx, paneRegs, titleRegs, openedTabs } = makeCtx();
+    plugin.apply(ctx);
+    const hostPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
+    hostPane.definition.inject('session-1').openFiles('4242', 'demo-1');
+    assert.deepEqual(openedTabs[0], { kind: 'ssh-files', options: { params: { pid: '4242', host: 'demo-1' } } });
+    const title = titleRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-files');
+    assert.ok(title, '远程文件 Tab 标题必须注册');
+    assert.equal(title.component, RemoteFilesTitle);
+  });
+
+  it('同一文件 Tab 的导航参数变化会同步内部 pid', () => {
+    const states = [];
+    const refs = [];
+    const effects = [];
+    let stateIndex = 0;
+    let refIndex = 0;
+    const react = {
+      createElement: () => ({}),
+      useState: (initial) => {
+        const index = stateIndex++;
+        if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
+        return [states[index], (update) => { states[index] = typeof update === 'function' ? update(states[index]) : update; }];
+      },
+      useRef: (initial) => {
+        const index = refIndex++;
+        if (!(index in refs)) refs[index] = { current: initial };
+        return refs[index];
+      },
+      useEffect: (fn, deps) => effects.push({ fn, deps }),
+    };
+    const localPlugin = loaded.factory((name) => name === 'react' ? react : requireStub(name));
+    const tab = {
+      navigation: { params: { pid: '41', host: 'demo@127.0.0.1:2222' }, revision: 0 },
+      params: { pid: '41' },
+      actions: { openTab: () => {} },
+    };
+    const render = () => {
+      stateIndex = 0;
+      refIndex = 0;
+      effects.length = 0;
+      localPlugin.__testing.RemoteFiles({ useTabInfo: () => ({ tab }) });
+    };
+    render();
+    assert.equal(states[2], '41');
+    tab.navigation = { params: { pid: '52', host: 'demo@127.0.0.1:2223' }, revision: 1 };
+    tab.params = { pid: '52' };
+    render();
+    assert.deepEqual(effects[0].deps, [tab.navigation.params.pid, tab.navigation.revision]);
+    effects[0].fn();
+    assert.equal(states[2], '52');
   });
 
   it('面板上传上限与宿主一致（32 MiB）', () => {
@@ -310,6 +479,28 @@ describe('独立远程文件页', () => {
     assert.equal(parentRemotePath('/'), '/');
     assert.equal(basenameRemotePath('/srv/a.txt'), 'a.txt');
     assert.equal(basenameRemotePath('/'), 'download');
+  });
+
+  it('home 内使用波浪线路径，home 外保留绝对路径面包屑', () => {
+    assert.deepEqual(remoteBreadcrumbs('/home/demo/project/src', '/home/demo'), [
+      { label: '~', path: '/home/demo' },
+      { label: 'project', path: '/home/demo/project' },
+      { label: 'src', path: '/home/demo/project/src' },
+    ]);
+    assert.deepEqual(remoteBreadcrumbs('/tmp/a', '/home/demo'), [
+      { label: '/', path: '/' },
+      { label: 'tmp', path: '/tmp' },
+      { label: 'a', path: '/tmp/a' },
+    ]);
+    assert.deepEqual(remoteBreadcrumbs('/', '/home/demo'), [{ label: '/', path: '/' }]);
+    assert.equal(displayRemotePath('/home/demo/project/notes.txt', '/home/demo'), '~/project/notes.txt');
+    assert.equal(displayRemotePath('/tmp/notes.txt', '/home/demo'), '/tmp/notes.txt');
+  });
+
+  it('目录包含关系按完整路径段判断', () => {
+    assert.equal(isRemotePathWithin('/home/demo', '/home/demo/project'), true);
+    assert.equal(isRemotePathWithin('/home/demo', '/home/demo2'), false);
+    assert.equal(isRemotePathWithin('/', '/tmp'), true);
   });
 
   it('上传文件名不伪装成路径', () => {
