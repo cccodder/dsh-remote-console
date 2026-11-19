@@ -8,6 +8,12 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **面板路由跨热更新幂等**：插件管理器热更新不一定调用旧实例的 dispose，旧路由会占用路径，
+  新版只剩部分路由可用。现在以 webServer 实例为键在 globalThis 上保存 disposer，重新 apply 时
+  先替换旧路由；旧实例晚到的 dispose 不会误删新路由。升级自没有该注册表的旧版本仍需完整重启一次。
+
 ## [0.13.0] - 2026-11-19
 
 ### Changed

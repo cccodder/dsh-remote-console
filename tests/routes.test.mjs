@@ -82,6 +82,18 @@ describe('面板路由注册', () => {
     assert.equal(webServer.routes.size, count, '另一组路由不受影响');
   });
 
+  it('热更新重复 apply 会替换旧路由，旧 dispose 不误删新路由', () => {
+    const webServer = makeWebServer();
+    const first = applyPanelRoutes({ get: () => webServer });
+    const count = webServer.routes.size;
+    const second = applyPanelRoutes({ get: () => webServer });
+    assert.equal(webServer.routes.size, count, '重复 apply 不叠加路由');
+    first();
+    assert.equal(webServer.routes.size, count, '旧 dispose 不能删掉新实例');
+    second();
+    assert.equal(webServer.routes.size, 0);
+  });
+
   it('registerStatusRoute 在 webServer 晚到时也能注册（rc1013 修复回归）', () => {
     let callback;
     const ctx = {
