@@ -46,6 +46,12 @@ The trade-off, stated plainly: one terminal per session, no second pane; renderi
 
 ![The sidebar SSH remote panel](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
+![The dedicated remote file tree](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/remote-files-tree.png)
+
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/remote-files-demo.mp4
+
+*50 seconds of remote files: expanding directories, editing and saving in a dedicated page, switching consoles and uploading. From a real signed-in acceptance recording, masked.*
+
 ## Get started in 30 seconds
 
 Plugin market (recommended): sidebar "Discover" → "Add index source" → paste
