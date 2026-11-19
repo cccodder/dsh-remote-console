@@ -18,6 +18,12 @@ extension points, so a DSH minor release may need a plugin release.
 - README 暂时移除旧内嵌文件区的亮点短片，避免展示已替换的交互；新界面验收后再更新素材。
 
 
+### Fixed
+
+- **重新前往当前根目录不再空白**（rc1016 P2）：清空树后若路径与当前 root 相同，React 不会再次
+  触发加载 effect；现在显式重读根层。非法路径纠正后不再需要手点「刷新」。
+- **编辑页即时显示保存成功**：保存完成后 footer 直接显示「已保存」，不再要等返回文件树才看到。
+
 ## [0.12.0] - 2026-11-18
 
 ### Added
