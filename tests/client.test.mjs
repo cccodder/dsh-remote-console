@@ -279,7 +279,7 @@ describe('主机分组与置顶', () => {
 
 describe('独立远程文件页', () => {
   const plugin = loaded.factory(requireStub);
-  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, RemoteFiles } = plugin.__testing;
+  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, PANEL_UPLOAD_LIMIT_BYTES, RemoteFiles } = plugin.__testing;
 
   it('注册独立文件 Tab，并从终端行带着 pid 打开', () => {
     const { ctx, paneRegs, openedTabs } = makeCtx();
@@ -290,6 +290,10 @@ describe('独立远程文件页', () => {
     const hostPane = paneRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-hosts');
     hostPane.definition.inject('session-1').openFiles('4242');
     assert.deepEqual(openedTabs, [{ kind: 'ssh-files', options: { params: { pid: '4242' } } }]);
+  });
+
+  it('面板上传上限与宿主一致（32 MiB）', () => {
+    assert.equal(PANEL_UPLOAD_LIMIT_BYTES, 32 * 1024 * 1024);
   });
 
   it('远端路径拼接、父目录与文件名', () => {

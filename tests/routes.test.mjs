@@ -6,6 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
@@ -19,6 +20,7 @@ const {
   applyPanelRoutes,
   registerStatusRoute,
   writeAllowed,
+  readRequestBody,
   STATUS_ROUTE,
   FILES_ROUTE,
   FILES_UPLOAD_ROUTE,
@@ -233,5 +235,30 @@ describe('远端 home 路由', () => {
     route.handler(req('GET', `${FILES_HOME_ROUTE}?pid=none`), missing);
     await tick();
     assert.equal(missing.statusCode, 404);
+  });
+});
+
+
+describe('上传请求体边界', () => {
+  it('超限拒绝但不 destroy socket，让 413 能返回浏览器', async () => {
+    const request = new EventEmitter();
+    let destroyed = false;
+    request.destroy = () => { destroyed = true; };
+    const reading = readRequestBody(request, 4);
+    const rejected = assert.rejects(reading, /TOO_LARGE/u);
+    request.emit('data', Buffer.from('12345'));
+    await rejected;
+    request.emit('data', Buffer.from('more'));
+    request.emit('end');
+    assert.equal(destroyed, false);
+  });
+
+  it('未超限仍返回完整 body', async () => {
+    const request = new EventEmitter();
+    const reading = readRequestBody(request, 5);
+    request.emit('data', Buffer.from('ab'));
+    request.emit('data', Buffer.from('cd'));
+    request.emit('end');
+    assert.equal((await reading).toString(), 'abcd');
   });
 });
