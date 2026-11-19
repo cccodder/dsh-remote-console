@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19
+
 ### Changed
 
 - **文件浏览改为独立「远程文件」Tab**：不再挤在主机面板底部。新页面采用 DSH 原生风格的
@@ -17,25 +19,20 @@ extension points, so a DSH minor release may need a plugin release.
 - 新增只读 `files/home` 路由解析远端 home，不再猜测 `/home/<user>`（macOS、NAS 路径不同）。
 - README 用已验收的新文件树截图与 50 秒打码录屏替换旧内嵌文件区短片。
 
-
 ### Fixed
 
-- **重新前往当前根目录不再空白**（rc1016 P2）：清空树后若路径与当前 root 相同，React 不会再次
-  触发加载 effect；现在显式重读根层。非法路径纠正后不再需要手点「刷新」。
-- **编辑页即时显示保存成功**：保存完成后 footer 直接显示「已保存」，不再要等返回文件树才看到。
-
-### Fixed
-
-- **二进制读取失败不再出现可编辑框**（rc1018 P2）：读取错误单独记为 `loadError`，不再与保存/
-  未保存提示混用；二进制 415 或其他读取失败时只显示错误页，不渲染 textarea，保存与还原本地禁用，
+- **重新前往当前根目录不再空白**：相同 root 显式重读，非法路径纠正后不再需要手点刷新。
+- **编辑页即时显示保存成功**：保存完成后 footer 直接显示「已保存」。
+- **二进制读取失败不再出现可编辑框**：读取错误单独处理；失败时不渲染 textarea，保存与还原禁用，
   `saveFile` 也有硬 guard，不能写回二进制路径。
-- **面板上传超限有明确反馈**：浏览器在发送前检查 32 MiB 上限；服务端超限时不再 `req.destroy()`
-  把连接直接砍掉，而是排空后续 body 并返回 413「单文件上传上限 32 MiB」。
+- **面板上传超限有明确反馈**：浏览器先检查 32 MiB；服务端超限返回可读 413，不再直接砍 socket。
+- **超限提示显示精确字节数**：32 MiB + 1 显示 `33,554,433 字节`，不再被四舍五入藏掉。
 
-### Fixed
+### Tests
 
-- **超限提示同时显示精确字节数**：32 MiB + 1 现在明确显示 `33,554,433 字节`，不再只显示
-  四舍五入后的「32.0 MB」而让人看不出为什么超限（rc1019 P4）。
+- 非集成测试 243 项通过，含独立 Tab、路径、上传边界、home 路由与请求体测试。
+- Tester 真机验收：rc1017 主流程 9 项通过；rc1019 二进制、32 MiB / +1 字节、保存挂起通过。
+  证据含截图、一镜到底录屏与打码版，环境为隔离 DSH_HOME + 本机 demo sshd；未覆盖 Windows。
 
 ## [0.12.0] - 2026-11-18
 
@@ -581,6 +578,7 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
 [Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...HEAD
+[0.13.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...v0.11.0
 [0.10.12]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.11...v0.10.12
