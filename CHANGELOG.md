@@ -15,7 +15,7 @@ extension points, so a DSH minor release may need a plugin release.
   点文件进入独立编辑页，保存 / 下载 / 二次确认删除都在同一页。主机面板的「终端与隧道」
   行新增「文件」入口。数据源与安全边界不变，仍复用已认证 ControlMaster，不建立第二条连接。
 - 新增只读 `files/home` 路由解析远端 home，不再猜测 `/home/<user>`（macOS、NAS 路径不同）。
-- README 暂时移除旧内嵌文件区的亮点短片，避免展示已替换的交互；新界面验收后再更新素材。
+- README 用已验收的新文件树截图与 50 秒打码录屏替换旧内嵌文件区短片。
 
 
 ### Fixed
@@ -31,6 +31,11 @@ extension points, so a DSH minor release may need a plugin release.
   `saveFile` 也有硬 guard，不能写回二进制路径。
 - **面板上传超限有明确反馈**：浏览器在发送前检查 32 MiB 上限；服务端超限时不再 `req.destroy()`
   把连接直接砍掉，而是排空后续 body 并返回 413「单文件上传上限 32 MiB」。
+
+### Fixed
+
+- **超限提示同时显示精确字节数**：32 MiB + 1 现在明确显示 `33,554,433 字节`，不再只显示
+  四舍五入后的「32.0 MB」而让人看不出为什么超限（rc1019 P4）。
 
 ## [0.12.0] - 2026-11-18
 

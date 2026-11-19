@@ -46,6 +46,12 @@
 
 ![侧栏「SSH 远程」面板](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/ssh-panel.png)
 
+![独立远程文件树](https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/remote-files-tree.png)
+
+https://raw.githubusercontent.com/cccodder/dsh-remote-console/main/docs/images/remote-files-demo.mp4
+
+*50 秒看远程文件：逐层展开目录、独立编辑保存、多终端切换与上传；来自真实登录会话的验收录屏，已打码。*
+
 ## 30 秒上手
 
 插件市场（推荐）：侧栏「发现」→「添加索引源」→ 粘贴

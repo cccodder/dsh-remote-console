@@ -279,7 +279,7 @@ describe('主机分组与置顶', () => {
 
 describe('独立远程文件页', () => {
   const plugin = loaded.factory(requireStub);
-  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, PANEL_UPLOAD_LIMIT_BYTES, RemoteFiles } = plugin.__testing;
+  const { joinRemotePath, parentRemotePath, basenameRemotePath, safeUploadName, PANEL_UPLOAD_LIMIT_BYTES, uploadLimitMessage, RemoteFiles } = plugin.__testing;
 
   it('注册独立文件 Tab，并从终端行带着 pid 打开', () => {
     const { ctx, paneRegs, openedTabs } = makeCtx();
@@ -294,6 +294,12 @@ describe('独立远程文件页', () => {
 
   it('面板上传上限与宿主一致（32 MiB）', () => {
     assert.equal(PANEL_UPLOAD_LIMIT_BYTES, 32 * 1024 * 1024);
+  });
+
+  it('超限提示保留精确字节数，不被四舍五入藏掉', () => {
+    const message = uploadLimitMessage(32 * 1024 * 1024 + 1);
+    assert.match(message, /33,554,433 字节/u);
+    assert.match(message, /未发送/u);
   });
 
   it('远端路径拼接、父目录与文件名', () => {
