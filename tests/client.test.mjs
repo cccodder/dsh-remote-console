@@ -257,7 +257,7 @@ describe('文件与活动视图的格式化', () => {
 
 describe('主机分组与置顶', () => {
   const plugin = loaded.factory(requireStub);
-  const { readHostPrefs, writeHostPrefs, togglePinned, setHostGroup, hostMetaMap, groupShells, findConsoleForHost, compactHostLabel, terminalTitleForHost, renameTerminalWhenReady } = plugin.__testing;
+  const { readHostPrefs, writeHostPrefs, togglePinned, setHostGroup, hostMetaMap, groupShells, findConsoleForHost, consoleDisplayName, compactHostLabel, terminalTitleForHost, renameTerminalWhenReady } = plugin.__testing;
 
   const store = () => {
     const data = new Map();
@@ -340,6 +340,23 @@ describe('主机分组与置顶', () => {
     assert.equal(terminalTitleForHost('demo@127.0.0.1:2223'), '终端 · 127.0.0.1:2223');
   });
 
+  it('直连目标按 user/host/port 匹配在线终端并进入已连接组', () => {
+    const direct = [
+      { pid: '51', host: '127.0.0.1', user: 'demo', port: '2222' },
+      { pid: '52', host: '127.0.0.1', user: 'demo', port: '2223' },
+      { pid: '53', host: '127.0.0.1', user: 'demo', port: '22' },
+    ];
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:2222').pid, '51');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:2223').pid, '52');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1').pid, '53', '缺省端口就是 22');
+    assert.equal(findConsoleForHost(direct, 'demo@127.0.0.1:22').pid, '53');
+    assert.equal(findConsoleForHost(direct, 'other@127.0.0.1:2222'), undefined);
+    assert.equal(consoleDisplayName(direct[1]), 'demo@127.0.0.1:2223');
+    const directShell = [{ path: '/ssh-direct', name: 'SSH demo@127.0.0.1:2222' }];
+    const groups = groupShells(directShell, { pinned: [], groups: {} }, { consoles: direct, recent: {}, now: 1_800_000_000_000 });
+    assert.deepEqual(groups.map((group) => group.name), ['已连接']);
+  });
+
   it('原生终端创建完成后才重命名，并释放状态监听', async () => {
     let snapshot = { phase: 'idle', info: undefined };
     const listeners = new Set();
@@ -400,6 +417,48 @@ describe('独立远程文件页', () => {
     const title = titleRegs.find((entry) => entry.definition.key === 'dsh-remote-console/ssh-files');
     assert.ok(title, '远程文件 Tab 标题必须注册');
     assert.equal(title.component, RemoteFilesTitle);
+  });
+
+  it('同一文件 Tab 的导航参数变化会同步内部 pid', () => {
+    const states = [];
+    const refs = [];
+    const effects = [];
+    let stateIndex = 0;
+    let refIndex = 0;
+    const react = {
+      createElement: () => ({}),
+      useState: (initial) => {
+        const index = stateIndex++;
+        if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial;
+        return [states[index], (update) => { states[index] = typeof update === 'function' ? update(states[index]) : update; }];
+      },
+      useRef: (initial) => {
+        const index = refIndex++;
+        if (!(index in refs)) refs[index] = { current: initial };
+        return refs[index];
+      },
+      useEffect: (fn, deps) => effects.push({ fn, deps }),
+    };
+    const localPlugin = loaded.factory((name) => name === 'react' ? react : requireStub(name));
+    const tab = {
+      navigation: { params: { pid: '41', host: 'demo@127.0.0.1:2222' }, revision: 0 },
+      params: { pid: '41' },
+      actions: { openTab: () => {} },
+    };
+    const render = () => {
+      stateIndex = 0;
+      refIndex = 0;
+      effects.length = 0;
+      localPlugin.__testing.RemoteFiles({ useTabInfo: () => ({ tab }) });
+    };
+    render();
+    assert.equal(states[2], '41');
+    tab.navigation = { params: { pid: '52', host: 'demo@127.0.0.1:2223' }, revision: 1 };
+    tab.params = { pid: '52' };
+    render();
+    assert.deepEqual(effects[0].deps, [tab.navigation.params.pid, tab.navigation.revision]);
+    effects[0].fn();
+    assert.equal(states[2], '52');
   });
 
   it('面板上传上限与宿主一致（32 MiB）', () => {
