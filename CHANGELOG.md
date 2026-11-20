@@ -8,6 +8,8 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-20
+
 ### Added
 
 - **结构化远程文件阅读与编辑**：Markdown 默认显示安全排版后的阅读视图，支持常用标题、列表、表格、引用、代码块和 HTTP(S) 链接；JSON/YAML 的阅读与编辑视图带行号和语法高亮。JSON 严格解析并可格式化，YAML 检查常见缩进、引号与 flow 括号错误；错误定位到行列并同时阻止按钮和 Ctrl/Cmd+S 保存。阅读预览与编辑共用当前草稿，不会自动写回远端。
@@ -24,6 +26,12 @@ extension points, so a DSH minor release may need a plugin release.
 - **面板路由跨热更新幂等**：插件管理器热更新不一定调用旧实例的 dispose，旧路由会占用路径，
   新版只剩部分路由可用。现在以 webServer 实例为键在 globalThis 上保存 disposer，重新 apply 时
   先替换旧路由；旧实例晚到的 dispose 不会误删新路由。升级自没有该注册表的旧版本仍需完整重启一次。
+
+### Tests
+
+- 客户端与组件测试 48 项通过；GitHub Actions 通过。Tester rc1022 面板工作流 7 项通过，
+  rc1023 结构化文件功能 5 项通过，rc1024 最终视觉复核通过；证据含真实登录会话截图、
+  连续录屏、界面外磁盘复核与打码素材。验收远端为本机 demo sshd，深色主题未覆盖。
 
 ## [0.13.0] - 2026-11-19
 
@@ -594,7 +602,8 @@ Windows 支持（实验性）：终端与 agent 工具都能用，走的是 PTY 
 首个版本：右侧栏 SSH 远程终端、agent 写进同一个 PTY、OSC 退出码、统一日志、
 认证期拒写、危险命令审批、崩溃残留日志清扫、44 个测试、双语文档。
 
-[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...HEAD
+[Unreleased]: https://github.com/cccodder/dsh-remote-console/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cccodder/dsh-remote-console/compare/v0.10.12...v0.11.0
