@@ -8,6 +8,10 @@ extension points, so a DSH minor release may need a plugin release.
 
 ## [Unreleased]
 
+### Added
+
+- **结构化远程文件阅读与编辑**：Markdown 默认显示安全排版后的阅读视图，支持常用标题、列表、表格、引用、代码块和 HTTP(S) 链接；JSON/YAML 的阅读与编辑视图带行号和语法高亮。JSON 严格解析并可格式化，YAML 检查常见缩进、引号与 flow 括号错误；错误定位到行列并同时阻止按钮和 Ctrl/Cmd+S 保存。阅读预览与编辑共用当前草稿，不会自动写回远端。
+
 ### Changed
 
 - **远程面板按当前工作流组织**：置顶、已连接、最近连接优先展开，普通分组默认折叠；主机行明确保留
