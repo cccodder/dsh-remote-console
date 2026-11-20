@@ -437,6 +437,7 @@ describe('独立远程文件页', () => {
         if (!(index in refs)) refs[index] = { current: initial };
         return refs[index];
       },
+      useMemo: (fn) => fn(),
       useEffect: (fn, deps) => effects.push({ fn, deps }),
     };
     const localPlugin = loaded.factory((name) => name === 'react' ? react : requireStub(name));
@@ -511,5 +512,215 @@ describe('独立远程文件页', () => {
     assert.equal(safeUploadName('a\\b'), false);
     assert.equal(safeUploadName(''), false);
     assert.equal(safeUploadName('..'), false);
+  });
+});
+
+describe('结构化远程文件阅读与编辑', () => {
+  const plugin = loaded.factory(requireStub);
+  const {
+    fileLanguage,
+    languageLabel,
+    validateFileContent,
+    formatJson,
+    safeMarkdownHref,
+    markdownInline,
+    markdownBlocks,
+    tokenizeCodeLine,
+  } = plugin.__testing;
+
+  const renderReact = {
+    Fragment: 'Fragment',
+    createElement: (type, props, ...children) => ({ type, props: { ...(props ?? {}), children } }),
+    useRef: () => ({ current: null }),
+    useMemo: (fn) => fn(),
+  };
+  const renderPlugin = loaded.factory((name) => name === 'react' ? renderReact : requireStub(name));
+  const walk = (node, visit) => {
+    if (Array.isArray(node)) {
+      for (const child of node) walk(child, visit);
+      return;
+    }
+    if (node === null || typeof node !== 'object') return;
+    visit(node);
+    walk(node.props?.children, visit);
+  };
+
+  it('按扩展名选择 Markdown、JSON、YAML 或纯文本', () => {
+    assert.equal(fileLanguage('/srv/README.md'), 'markdown');
+    assert.equal(fileLanguage('/srv/CHANGELOG.MARKDOWN'), 'markdown');
+    assert.equal(fileLanguage('/srv/app.json'), 'json');
+    assert.equal(fileLanguage('/srv/app.yaml'), 'yaml');
+    assert.equal(fileLanguage('/srv/app.YML'), 'yaml');
+    assert.equal(fileLanguage('/srv/notes.txt'), 'text');
+    assert.equal(languageLabel('yaml'), 'YAML');
+  });
+
+  it('JSON 使用严格解析，错误带行列', () => {
+    assert.equal(validateFileContent('{"name":"demo","ok":true}', 'json').valid, true);
+    const invalid = validateFileContent('{\n  "name": "demo",\n  "ok": true,\n}', 'json');
+    assert.equal(invalid.valid, false);
+    assert.ok(invalid.line >= 3, `应定位到末行附近，实际 ${invalid.line}`);
+    assert.ok(invalid.column >= 1);
+    assert.equal(validateFileContent('{name: demo}', 'json').valid, false, 'JSON 不接受无引号键');
+  });
+
+  it('JSON 格式化只在有效内容上进行', () => {
+    assert.equal(formatJson('{"name":"demo","ok":true}'), '{\n  "name": "demo",\n  "ok": true\n}\n');
+    assert.equal(formatJson('{bad'), undefined);
+  });
+
+  it('YAML 接受常见映射、列表、flow、注释与块标量', () => {
+    const source = [
+      'name: demo',
+      'servers:',
+      '  - host: 127.0.0.1',
+      '    port: 2222',
+      '    tags: [ssh, demo]',
+      '  - host: localhost',
+      '    enabled: true',
+      'note: "a # quoted value"',
+      'description: |',
+      '  第一行 # 仍属于文本',
+      '    更深的缩进与 [ 括号也只是文本',
+      'next: ok',
+      '',
+    ].join('\n');
+    const result = validateFileContent(source, 'yaml');
+    assert.equal(result.valid, true, result.message);
+  });
+
+  it('YAML 支持多行引号和 indentless sequence', () => {
+    const source = 'items:\n- one\n- two\ndescription: "first\n  second"\nnext: ok\n';
+    assert.equal(validateFileContent(source, 'yaml').valid, true);
+  });
+
+  it('YAML 拒绝 Tab 缩进和不一致的回退层级', () => {
+    const tab = validateFileContent('root:\n\tchild: value\n', 'yaml');
+    assert.equal(tab.valid, false);
+    assert.equal(tab.line, 2);
+    assert.match(tab.message, /Tab/u);
+    const dedent = validateFileContent('root:\n  child: value\n    grandchild: ok\n  sibling: ok\n broken: true\n', 'yaml');
+    assert.equal(dedent.valid, false);
+    assert.equal(dedent.line, 5);
+    assert.match(dedent.message, /缩进层级/u);
+  });
+
+  it('YAML 报告未闭合引号与 flow 括号', () => {
+    const bracket = validateFileContent('tags: [one, two\n', 'yaml');
+    assert.equal(bracket.valid, false);
+    assert.equal(bracket.line, 1);
+    assert.match(bracket.message, /没有闭合/u);
+    const quoted = validateFileContent('name: "demo\n', 'yaml');
+    assert.equal(quoted.valid, false);
+    assert.match(quoted.message, /引号/u);
+    const mismatch = validateFileContent('tags: [one}\n', 'yaml');
+    assert.equal(mismatch.valid, false);
+    assert.match(mismatch.message, /没有匹配/u);
+  });
+
+  it('JSON 高亮区分键、字符串、数字、关键字且保留原文', () => {
+    const line = '  "port": 2222, "enabled": true, "note": "demo"';
+    const tokens = tokenizeCodeLine(line, 'json');
+    assert.equal(tokens.map((entry) => entry.text).join(''), line);
+    assert.ok(tokens.some((entry) => entry.type === 'key' && entry.text === '"port"'));
+    assert.ok(tokens.some((entry) => entry.type === 'number' && entry.text === '2222'));
+    assert.ok(tokens.some((entry) => entry.type === 'keyword' && entry.text === 'true'));
+    assert.ok(tokens.some((entry) => entry.type === 'string' && entry.text === '"demo"'));
+  });
+
+  it('YAML 高亮区分键、列表、字符串和注释且保留原文', () => {
+    const line = '  - host: "demo" # 注释';
+    const tokens = tokenizeCodeLine(line, 'yaml');
+    assert.equal(tokens.map((entry) => entry.text).join(''), line);
+    assert.ok(tokens.some((entry) => entry.type === 'punctuation' && entry.text.includes('-')));
+    assert.ok(tokens.some((entry) => entry.type === 'key' && entry.text === 'host'));
+    assert.ok(tokens.some((entry) => entry.type === 'string' && entry.text === '"demo"'));
+    assert.equal(tokens.at(-1).type, 'comment');
+  });
+
+  it('Markdown 生成标题、列表、表格、引用和代码块结构', () => {
+    const source = [
+      '# 远程部署',
+      '',
+      '使用 **同一终端** 阅读 [项目](https://example.com/docs)。',
+      '',
+      '- 检查配置',
+      '- 保存文件',
+      '',
+      '| 主机 | 端口 |',
+      '| :--- | ---: |',
+      '| demo | 2222 |',
+      '',
+      '> 不建立第二条连接',
+      '',
+      '```yaml',
+      'enabled: true',
+      '```',
+    ].join('\n');
+    const blocks = markdownBlocks(source);
+    assert.deepEqual(blocks.map((block) => block.type), ['heading', 'paragraph', 'list', 'table', 'quote', 'code']);
+    assert.equal(blocks[0].level, 1);
+    assert.equal(blocks[2].items.length, 2);
+    assert.deepEqual(blocks[3].head, ['主机', '端口']);
+    assert.deepEqual(blocks[3].aligns, ['left', 'right']);
+    assert.equal(blocks[5].language, 'yaml');
+  });
+
+  it('Markdown 行内语法保留代码、强调和安全链接', () => {
+    const nodes = markdownInline('**保存** `file.md` [文档](https://example.com) ~~旧方式~~');
+    assert.deepEqual(nodes.map((node) => node.type), ['strong', 'text', 'code', 'text', 'link', 'text', 'delete']);
+    assert.equal(nodes[4].href, 'https://example.com');
+  });
+
+  it('Markdown 原始 HTML 与危险链接不会变成可执行节点', () => {
+    const blocks = markdownBlocks('<script>alert(1)</script>\n\n[危险链接](javascript:alert(1))');
+    assert.equal(blocks[0].type, 'paragraph');
+    assert.equal(blocks[0].text, '<script>alert(1)</script>');
+    const link = markdownInline('[危险链接](javascript:alert(1))')[0];
+    assert.equal(link.type, 'link');
+    assert.equal(link.href, undefined, '危险协议不得进入可点击 href');
+    assert.equal(safeMarkdownHref('javascript:alert(1)'), undefined);
+    assert.equal(safeMarkdownHref('https://example.com/a'), 'https://example.com/a');
+  });
+
+  it('Markdown 图片只显示说明，不自动发起远程或外部资源请求', () => {
+    const nodes = markdownInline('![网络拓扑](https://example.com/topology.png)');
+    assert.deepEqual(nodes, [{ type: 'image', alt: '网络拓扑', href: 'https://example.com/topology.png' }]);
+  });
+
+  it('Markdown 组件不生成 script、img 或 HTML 注入入口', () => {
+    const tree = renderPlugin.__testing.MarkdownView({ content: '# 标题\n\n<script>alert(1)</script>\n\n![图](https://example.com/a.png)' });
+    const types = [];
+    walk(tree, (node) => {
+      types.push(node.type);
+      assert.equal(node.props.dangerouslySetInnerHTML, undefined);
+    });
+    assert.ok(types.includes('h1'));
+    assert.ok(!types.includes('script'));
+    assert.ok(!types.includes('img'));
+  });
+
+  it('源码组件渲染行号、错误行，并让保存快捷键进入统一回调', () => {
+    let saves = 0;
+    const tree = renderPlugin.__testing.CodeEditor({
+      content: '{\n  "ok": true\n}',
+      language: 'json',
+      errorLine: 2,
+      disabled: false,
+      label: '编辑 app.json',
+      onChange: () => {},
+      onSave: () => { saves += 1; },
+    });
+    let textarea;
+    let badLines = 0;
+    walk(tree, (node) => {
+      if (node.type === 'textarea') textarea = node;
+      if (String(node.props.className ?? '').includes('rfCodeLineBad')) badLines += 1;
+    });
+    assert.equal(textarea.props.value, '{\n  "ok": true\n}');
+    assert.equal(badLines, 1);
+    const event = { metaKey: true, ctrlKey: false, key: 's', preventDefault: () => {} };
+    textarea.props.onKeyDown(event);
+    assert.equal(saves, 1);
   });
 });
